@@ -102,7 +102,7 @@ To clean all data of previous simulation results, you can run the command:
 ./cleanup.sh
 ```
 
-#### ConWeave Parameters
+#### CAVER Parameters
 We include CAVER's parameter values into `./run.py` based on flow control model and topology.  
 
 
