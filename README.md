@@ -60,8 +60,8 @@ To plot the FCT graph, see below or refer to the script `./analysis/plot_fct.py`
 
 :exclamation: **To run processes in background**, use the commands:
 ```shell
-docker run -dit --name cw-sim -v $(pwd):/root cw-sim:sigcomm23ae 
-docker exec -it cw-sim /bin/bash
+docker run -dit --name caver-sim -v $(pwd):/root cw-sim:sigcomm23ae 
+docker exec -it caver-sim /bin/bash
 
 root@252578ceff68:~# cd ns-3.19/
 root@252578ceff68:~/ns-3.19# ./autorun.sh
