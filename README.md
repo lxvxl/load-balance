@@ -45,7 +45,10 @@ docker run -it -v $(pwd):/root caver-sim:version1 bash -c "cd ns-3.19; ./waf con
 ```
 
 This should build everything necessary for the simulator.
-
+Do this to build a docker for the first time.(Once this is built, one can use the code in 2.Run to enter this docker)
+```shell
+docker run -it --name caver-sim -v $(pwd):/root caver-sim:version1
+```
 #### 2. Run
 One can always just run the container: 
 ```shell
