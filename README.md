@@ -50,10 +50,13 @@ Do this to build a docker for the first time.(Once this is built, one can use th
 docker run -it --name caver-sim -v $(pwd):/root caver-sim:version1
 ```
 #### 2. Run
-One can always just run the container: 
+Enter the docker
 ```shell
 docker start caver-sim
 docker exec -it caver-sim /bin/bash
+```
+Run the script: 
+```shell
 cd ns-3.19;
 ./autorun.sh
 ```
