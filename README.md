@@ -103,13 +103,9 @@ The script autorun.sh will run three different load balancing algorithms(ECMP, C
 The meaning of each entry's first 4 values is as follows: time, simulation id, cc_mode(1:DCQCN), load_mode(0:ECMP, 9:ConWeave, 10:CAVER).
 
 #### 4. Plot
-You can easily plot the results using the following script ./show/all-to-all_visual.py:
-
-```shell
-python3 ./analysis/plot_fct.py
-python3 ./analysis/plot_queue.py
-python3 ./analysis/plot_uplink.py
-```
+You can easily plot the results using the following script ./show/all-to-all_visual.py to generate picture as Fig 2 in the posters:
+Step 1: 
+Find each algorithm 's Simulation ID in the `./mix/.history`
 
 See below for details of output results.
  
