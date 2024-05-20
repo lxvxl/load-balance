@@ -74,13 +74,13 @@ This scirpt runs in the background, and may take servel hours to finish a simula
 The results are located at `./mix/output`.
 
 * At `./mix/output`, several raw data is stored such as 
-  * Flow Completion Time (`XXX_out_fct.txt`), - Figure 12, 13
+  * Flow Completion Time (`XXX_out_fct.txt`), 
   * PFC generation (`XXX_out_pfc.txt`), 
-  * Uplink's utility (`XXX_out_uplink.txt`), - Figure 14
+  * Uplink's utility (`XXX_out_uplink.txt`), 
   * Number of connections (`XXX_out_conn.txt`), 
   * Congestion Notification Packet (`XXX_out_cnp.txt`).
-  * CDF of number of queues usage per egress port (`XXX_out_voq_per_dst_cdf.txt`). - Figure 15 
-  * CDF of total queue memory overhead per switch (`XXX_out_voq_cdf.txt`). - Figure 16
+  * CDF of number of queues usage per egress port (`XXX_out_voq_per_dst_cdf.txt`). 
+  * CDF of total queue memory overhead per switch (`XXX_out_voq_cdf.txt`). 
   
 * Each run of simulation creates a repository in `./mix/output` with simulation ID (10-digit number).
 * Inside the folder, you can check the simulation config `config.txt` and output log `config.log`. 
