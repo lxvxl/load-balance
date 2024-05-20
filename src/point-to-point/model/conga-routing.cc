@@ -38,7 +38,7 @@ namespace ns3 {
 /*---- Conga-Tag -----*/
 
 CongaTag::CongaTag() {}
-CongaTag::~CongaTag() {}
+CongaTag::~CongaTag() {} 
 TypeId CongaTag::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::CongaTag").SetParent<Tag>().AddConstructor<CongaTag>();
     return tid;
