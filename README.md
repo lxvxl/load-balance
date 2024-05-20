@@ -114,6 +114,10 @@ CAVER_id = 918924462
 conweave_id = 744923884
 ```
 
+We also provide a `./show/all-to-all_visual.ipynb` with the same method
+
+The figure will be save as `plot.pdf` and `plot.png`
+
 
 ##### Topology
 To evaluate on topology of a fat-tree (K=4) with bond, you can simply change the `TOPOLOGY` variable in `autorun.sh` to `fat_k_4_OS1`:
