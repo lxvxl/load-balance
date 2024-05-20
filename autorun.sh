@@ -24,16 +24,19 @@ cecho "YELLOW" "----------------------------------\n"
 
 # Lossless RDMA
 cecho "GREEN" "Run Lossless RDMA experiments..."
+# ECMP
 python3 run.py --lb fecmp --pfc 1 --irn 0 --simul_time ${RUNTIME} --netload ${NETLOAD} --topo ${TOPOLOGY} 2>&1 > /dev/null & 
 sleep 5
-# conga only for non-bond topo;
+# conga (only for non-bond topo)
 # python3 run.py --lb conga --pfc 1 --irn 0 --simul_time ${RUNTIME} --netload ${NETLOAD} --topo ${TOPOLOGY} 2>&1 > /dev/null &
 # sleep 0.1
-# 
-python3 run.py --lb dv --pfc 1 --irn 0 --simul_time ${RUNTIME} --netload ${NETLOAD} --topo ${TOPOLOGY} 2>&1 > /dev/null &
-sleep 0.1
+# ConWeave
 python3 run.py --lb conweave --pfc 1 --irn 0 --simul_time ${RUNTIME} --netload ${NETLOAD} --topo ${TOPOLOGY} 2>&1 > /dev/null &
 sleep 0.1
+#Caver
+python3 run.py --lb dv --pfc 1 --irn 0 --simul_time ${RUNTIME} --netload ${NETLOAD} --topo ${TOPOLOGY} 2>&1 > /dev/null &
+sleep 0.1
+
 
 
 cecho "GREEN" "Runing all in parallel. Check the processors running on background!"
