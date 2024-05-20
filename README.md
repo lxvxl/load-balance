@@ -86,7 +86,7 @@ The results are located at `./mix/output`.
 * Inside the folder, you can check the simulation config `config.txt` and output log `config.log`. 
 * The history of simulations will be recorded in `./mix/.history`. 
 
-The script autorun.sh will run three different load balancing algorithms(ECMP, ConWeave and CAVER) with the same topology and traffic, each method will be allocated a simulation ID(10-digit number), and the newest simulation ID will be added to the end of the `./mix/.history` file. The structs are as follows
+The script autorun.sh will run three different load balancing algorithms(ECMP, ConWeave and CAVER) with the same topology and traffic, each method will be allocated a simulation ID(10-digit number), and the newest simulation ID will be added to the end of the `./mix/.history` file. The structs of `./mix/.history` are as follows
 ```shell
 05/20/24,176527761,1,0,1000,4,16,64,400,1,0,0,0,fat_k_4_OS1,100,AliStorage2019,60,0.1
 ./waf --run 'scratch/network-load-balance /root/ns-3.19/mix/output/176527761/config.txt' > /root/ns-3.19/mix/output/176527761/config.log 2>&1
