@@ -41,7 +41,7 @@ docker build -t CAVER-sim:version1 .
 
 Once the container is built, do this from the root directory:
 ```shell
-docker run -it -v $(pwd):/root cw-sim:sigcomm23ae bash -c "cd ns-3.19; ./waf configure --build-profile=optimized; ./waf"
+docker run -it -v $(pwd):/root CAVER-sim:version1 bash -c "cd ns-3.19; ./waf configure --build-profile=optimized; ./waf"
 ```
 
 This should build everything necessary for the simulator.
@@ -49,7 +49,7 @@ This should build everything necessary for the simulator.
 #### 2. Run
 One can always just run the container: 
 ```shell
-docker run -it --name cw-sim -v $(pwd):/root cw-sim:sigcomm23ae 
+docker run -it --name CAVER-sim -v $(pwd):/root CAVER-sim:version1 
 cd ns-3.19;
 ./autorun.sh
 ```
