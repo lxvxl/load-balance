@@ -92,7 +92,8 @@ BEgressQueue::DoDequeueRR(bool paused[])  // this is for switch only
     NS_LOG_FUNCTION(this);
 
     if (m_bytesInQueueTotal == 0) {
-        NS_LOG_LOGIC("Queue empty");
+        // NS_LOG_LOGIC("Queue empty");
+        // std::cout << "Warning: BEgressQueue::DoDequeueRR queue is empty" << std::endl;
         return 0;
     }
     bool found = false;
@@ -117,6 +118,7 @@ BEgressQueue::DoDequeueRR(bool paused[])  // this is for switch only
                         if (!MAP_KEY_EXISTS(current_pause_time, flowid))
                             current_pause_time[flowid] = Simulator::Now();
                     }
+                    // std::cout<<"Warning: BEgressQueue::DoDequeueRR packet could not be scheduled because of PAUSE"<<std::endl;s
                 } else if (cond1 && cond2) {
                     found = true;
                     break;
@@ -155,6 +157,7 @@ BEgressQueue::DoDequeueRR(bool paused[])  // this is for switch only
         return p;
     }
     NS_LOG_LOGIC("Nothing can be sent");
+    // std::cout << "Warning: BEgressQueue::DoDequeueRR nothing can be sent" << std::endl;
     return 0;
 }
 
