@@ -58,27 +58,6 @@ That will run `0.1 second` simulation of the experiment for Figure 2 in the pape
 In the script, you can easily change the network load (e.g., `50%`), runtime (e.g., `0.1s`), or topology (e.g., `leaf-spine`).
 To plot the FCT graph, see below or refer to the script `./analysis/plot_fct.py`.
 
-:exclamation: **To run processes in background**, use the commands:
-```shell
-docker run -dit --name caver-sim -v $(pwd):/root cw-sim:sigcomm23ae 
-docker exec -it caver-sim /bin/bash
-
-root@252578ceff68:~# cd ns-3.19/
-root@252578ceff68:~/ns-3.19# ./autorun.sh
-Running RDMA Network Load Balancing Simulations (leaf-spine topology)
-
-----------------------------------
-TOPOLOGY: leaf_spine_128_100G_OS2
-NETWORK LOAD: 50
-TIME: 0.1
-----------------------------------
-
-Run Lossless RDMA experiments...
-Run IRN RDMA experiments...
-Runing all in parallel. Check the processors running on background!
-root@252578ceff68:~/ns-3.19# exit
-exit
-```
 
 #### 3. Plot
 You can easily plot the results using the following command:
