@@ -55,7 +55,12 @@ cd ns-3.19;
 ```
 
 That will run `0.1 second` simulation of the experiment for Figure 2 in the paper.
+
 In the script, you can easily change the network load (e.g., `50%`), runtime (e.g., `0.1s`), or topology (e.g., `leaf-spine`).
+
+This script first calls a traffic generator `./traffic_gen/traffic_gen.py` to create an input trace.
+Then, it runs NS-3 simulation script `./scratch/network-load-balance.cc`.
+
 To plot the FCT graph, see below or refer to the script `./analysis/plot_fct.py`.
 
 
@@ -68,23 +73,6 @@ python3 ./analysis/plot_uplink.py
 ```
 
 See below for details of output results.
-
-
-
-
-
-It first calls a traffic generator `./traffic_gen/traffic_gen.py` to create an input trace.
-Then, it runs NS-3 simulation script `./scratch/network-load-balance.cc`. 
-Lastly, it runs FCT analyzer `./fctAnalysis.py` and switch resource analyzer `./queueAnalysis.py`. 
-
-
-##### Plot
-You can easily plot the results using the following command:
-```shell
-python3 ./analysis/plot_fct.py
-python3 ./analysis/plot_queue.py
-python3 ./analysis/plot_uplink.py
-```
 
 The outcome figures are located at `./analysis/figures`. 
 1. The script requires input parameters such as `-sT` and `-fT` which indicate the time window to analyze the fct result. 
