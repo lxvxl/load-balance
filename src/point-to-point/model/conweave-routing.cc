@@ -109,6 +109,12 @@ TypeId ConWeaveReplyTag::GetTypeId(void) {
         TypeId("ns3::ConWeaveReplyTag").SetParent<Tag>().AddConstructor<ConWeaveReplyTag>();
     return tid;
 }
+
+void ConWeaveReplyTag::SetPathId(uint32_t pathId) { m_pathId = pathId; }
+uint32_t ConWeaveReplyTag::GetPathId(void) const { return m_pathId; }
+void ConWeaveReplyTag::SetHopCount(uint32_t hopCount) { m_hopCount = hopCount; }
+uint32_t ConWeaveReplyTag::GetHopCount(void) const { return m_hopCount; }
+
 void ConWeaveReplyTag::SetFlagReply(uint32_t flagReply) { m_flagReply = flagReply; }
 uint32_t ConWeaveReplyTag::GetFlagReply(void) const { return m_flagReply; }
 void ConWeaveReplyTag::SetEpoch(uint32_t epoch) { m_epoch = epoch; }
@@ -117,22 +123,30 @@ void ConWeaveReplyTag::SetPhase(uint32_t phase) { m_phase = phase; }
 uint32_t ConWeaveReplyTag::GetPhase(void) const { return m_phase; }
 TypeId ConWeaveReplyTag::GetInstanceTypeId(void) const { return GetTypeId(); }
 uint32_t ConWeaveReplyTag::GetSerializedSize(void) const {
-    return sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t);
+    return sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t);
 }
 void ConWeaveReplyTag::Serialize(TagBuffer i) const {
     i.WriteU32(m_flagReply);
     i.WriteU32(m_epoch);
     i.WriteU32(m_phase);
+
+    i.WriteU32(m_pathId);
+    i.WriteU32(m_hopCount);
 }
 void ConWeaveReplyTag::Deserialize(TagBuffer i) {
     m_flagReply = i.ReadU32();
     m_epoch = i.ReadU32();
     m_phase = i.ReadU32();
+
+    m_pathId = i.ReadU32();
+    m_hopCount = i.ReadU32();
 }
 void ConWeaveReplyTag::Print(std::ostream &os) const {
     os << "m_flagReply=" << m_flagReply;
     os << "m_epoch=" << m_epoch;
     os << "m_phase=" << m_phase;
+    os << "m_pathId=" << m_pathId;
+    os << "m_hopCount=" << m_hopCount;
 }
 
 /**
@@ -146,11 +160,31 @@ TypeId ConWeaveNotifyTag::GetTypeId(void) {
 }
 void ConWeaveNotifyTag::SetPathId(uint32_t pathId) { m_pathId = pathId; }
 uint32_t ConWeaveNotifyTag::GetPathId(void) const { return m_pathId; }
+
+void ConWeaveNotifyTag::SetRoutePathId(uint32_t routePathId) { m_routePathId = routePathId; }
+uint32_t ConWeaveNotifyTag::GetRoutePathId(void) const { return m_routePathId; }
+void ConWeaveNotifyTag::SetHopCount(uint32_t hopCount) { m_hopCount = hopCount; }
+uint32_t ConWeaveNotifyTag::GetHopCount(void) const { return m_hopCount; }
+
 TypeId ConWeaveNotifyTag::GetInstanceTypeId(void) const { return GetTypeId(); }
-uint32_t ConWeaveNotifyTag::GetSerializedSize(void) const { return sizeof(uint32_t); }
-void ConWeaveNotifyTag::Serialize(TagBuffer i) const { i.WriteU32(m_pathId); }
-void ConWeaveNotifyTag::Deserialize(TagBuffer i) { m_pathId = i.ReadU32(); }
-void ConWeaveNotifyTag::Print(std::ostream &os) const { os << "m_pathId=" << m_pathId; }
+uint32_t ConWeaveNotifyTag::GetSerializedSize(void) const { 
+    return sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t); 
+}
+void ConWeaveNotifyTag::Serialize(TagBuffer i) const { 
+    i.WriteU32(m_pathId); 
+    i.WriteU32(m_routePathId);
+    i.WriteU32(m_hopCount);
+}
+void ConWeaveNotifyTag::Deserialize(TagBuffer i) { 
+    m_pathId = i.ReadU32(); 
+    m_routePathId = i.ReadU32();
+    m_hopCount = i.ReadU32();
+    }
+void ConWeaveNotifyTag::Print(std::ostream &os) const { 
+    os << "m_pathId=" << m_pathId; 
+    os << "m_routePathId=" << m_routePathId;
+    os << "m_hopCount=" << m_hopCount;
+}
 
 /*---------------- ConWeaveRouting ---------------*/
 // debugging to check timing
@@ -273,7 +307,7 @@ void ConWeaveRouting::SendReply(Ptr<Packet> p, CustomHeader &ch, uint32_t flagRe
     ipv4h.SetProtocol(0xFD);  // (N)ACK - (IRN)
     ipv4h.SetTtl(64);
     ipv4h.SetPayloadSize(replyP->GetSize());
-    ipv4h.SetIdentification(UniformVariable(0, 65536).GetValue());
+    ipv4h.SetIdentification(UniformVariable(0, 65536).GetValue()); 
     replyP->AddHeader(ipv4h);  // ipv4Header
 
     PppHeader ppp;
@@ -295,6 +329,28 @@ void ConWeaveRouting::SendReply(Ptr<Packet> p, CustomHeader &ch, uint32_t flagRe
         exit(1);
     }
 
+    uint32_t flow_id = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.sip], Settings::hostIp2IdMap[ch.dip], ch.udp.sport, ch.udp.dport)];
+    assert(Settings::flowId2SrcDst.find(flow_id) !=
+           Settings::flowId2SrcDst.end());  // Misconfig of Settings::hostIp2SwitchId - sip
+    //这个Reply的目的地是数据包的源ToR地址
+    uint32_t dstToRId = Settings::flowId2SrcDst[flow_id].first;
+    std::set<uint32_t> pathSet = m_ConWeaveRoutingTable[dstToRId];
+    uint32_t PathId = *pathSet.begin();
+
+    conweaveReplyTag.SetPathId(PathId);
+    conweaveReplyTag.SetHopCount(0);
+
+    if (Reply_log){
+        std::cout << "Reply info: " << Settings::hostIp2IdMap[ch.dip] << " -> " << Settings::hostIp2IdMap[ch.sip] <<" current ToR:" << m_switch_id << " Dst ToR:" << dstToRId;
+        std::cout << " flow_id:" << flow_id << std::endl;
+        std::cout <<" path:";
+        for (uint32_t i = 0; i < 4; i++){
+            std::cout << GetOutPortFromPath(PathId, i) << " ";
+        }
+        std:: cout << std::endl;
+    }
+
+
     replyP->AddPacketTag(conweaveReplyTag);
 
     // dummy reply's inDev interface
@@ -308,7 +364,15 @@ void ConWeaveRouting::SendReply(Ptr<Packet> p, CustomHeader &ch, uint32_t flagRe
     // send reply packets
     SLB_LOG(PARSE_FIVE_TUPLE(ch) << "================================### Send REPLY"
                                  << ",ReplyFlag:" << flagReply);
-    DoSwitchSendToDev(replyP, replyCh);  // will have ACK's priority
+
+
+    uint32_t outDev =
+            GetOutPortFromPath(conweaveReplyTag.GetPathId(), 0);
+
+    DoSwitchSend(replyP, replyCh, outDev, 0);
+
+
+    // DoSwitchSendToDev(replyP, replyCh);  // will have ACK's priority
     return;
 }
 
@@ -341,6 +405,24 @@ void ConWeaveRouting::SendNotify(Ptr<Packet> p, CustomHeader &ch, uint32_t pathI
     // attach ConWeaveNotifyTag
     ConWeaveNotifyTag conweaveNotifyTag;
     conweaveNotifyTag.SetPathId(pathId);
+
+    uint32_t flow_id = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.sip], Settings::hostIp2IdMap[ch.dip], ch.udp.sport, ch.udp.dport)];
+    assert(Settings::flowId2SrcDst.find(flow_id) !=
+           Settings::flowId2SrcDst.end());  // Misconfig of Settings::hostIp2SwitchId - sip
+    //这个Notify的目的地是数据包的源ToR地址
+    uint32_t dstToRId = Settings::flowId2SrcDst[flow_id].first;
+    std::set<uint32_t> pathSet = m_ConWeaveRoutingTable[dstToRId];
+    uint32_t RoutePathId = *pathSet.begin();
+
+    conweaveNotifyTag.SetRoutePathId(RoutePathId);
+    conweaveNotifyTag.SetHopCount(0);
+
+    if (Notify_log){
+        std::cout << "Notify info: " << Settings::hostIp2IdMap[ch.dip] << " -> " << Settings::hostIp2IdMap[ch.sip] <<" current ToR:" << m_switch_id << " Dst ToR:" << dstToRId;
+        std::cout << " flow id: " <<  flow_id   << std::endl;
+    }
+
+
     fbP->AddPacketTag(conweaveNotifyTag);
 
     // dummy notify's inDev interface
@@ -355,7 +437,13 @@ void ConWeaveRouting::SendNotify(Ptr<Packet> p, CustomHeader &ch, uint32_t pathI
 
     // send notify packets
     SLB_LOG(PARSE_FIVE_TUPLE(ch) << "================================### Send NOTIFY");
-    DoSwitchSendToDev(fbP, fbCh);  // will have ACK's priority
+
+    uint32_t outDev =
+            GetOutPortFromPath(conweaveNotifyTag.GetRoutePathId(), 0);
+            
+    DoSwitchSend(fbP, fbCh, outDev, 0);
+
+    // DoSwitchSendToDev(fbP, fbCh);  // will have ACK's priority
     return;
 }
 
@@ -369,21 +457,14 @@ void ConWeaveRouting::RouteInput(Ptr<Packet> p, CustomHeader &ch) {
         SLB_LOG("ConWeave routing restarts aging event scheduling:" << m_switch_id << now);
         m_agingEvent = Simulator::Schedule(m_agingTime, &ConWeaveRouting::AgingEvent, this);
     }
+    // // get srcToRId, dstToRId
+    // assert(Settings::hostIp2SwitchId.find(ch.sip) !=
+    //        Settings::hostIp2SwitchId.end());  // Misconfig of Settings::hostIp2SwitchId - sip
+    // assert(Settings::hostIp2SwitchId.find(ch.dip) !=
+    //        Settings::hostIp2SwitchId.end());  // Misconfig of Settings::hostIp2SwitchId - dip
+    // uint32_t srcToRId = Settings::hostIp2SwitchId[ch.sip];
+    // uint32_t dstToRId = Settings::hostIp2SwitchId[ch.dip];
 
-    // get srcToRId, dstToRId
-    assert(Settings::hostIp2SwitchId.find(ch.sip) !=
-           Settings::hostIp2SwitchId.end());  // Misconfig of Settings::hostIp2SwitchId - sip
-    assert(Settings::hostIp2SwitchId.find(ch.dip) !=
-           Settings::hostIp2SwitchId.end());  // Misconfig of Settings::hostIp2SwitchId - dip
-    uint32_t srcToRId = Settings::hostIp2SwitchId[ch.sip];
-    uint32_t dstToRId = Settings::hostIp2SwitchId[ch.dip];
-
-    /** FILTER: Quickly filter intra-pod traffic */
-    if (srcToRId == dstToRId) {  // do normal routing (only one path)
-        DoSwitchSendToDev(p, ch);
-        return;
-    }
-    assert(srcToRId != dstToRId);  // Should not be in the same pod
 
     if (ch.l3Prot != 0x11 && ch.l3Prot != 0xFD) {
         SLB_LOG(PARSE_FIVE_TUPLE(ch) << "ACK/PFC or other control pkts -> do flow-ECMP. Sw("
@@ -392,6 +473,43 @@ void ConWeaveRouting::RouteInput(Ptr<Packet> p, CustomHeader &ch) {
         return;
     }
     assert(ch.l3Prot == 0x11 || ch.l3Prot == 0xFD);  // Only supports UDP (data) or (N)ACK packets
+
+    // get srcToRId, dstToRId
+    uint32_t flow_id;
+    uint32_t srcToRId;
+    uint32_t dstToRId; 
+    if (ch.l3Prot == 0x11){
+            flow_id = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.sip], Settings::hostIp2IdMap[ch.dip], ch.udp.sport, ch.udp.dport)];
+            assert(Settings::flowId2SrcDst.find(flow_id) !=
+                Settings::flowId2SrcDst.end());  // Misconfig of Settings::hostIp2SwitchId - sip
+            srcToRId = Settings::flowId2SrcDst[flow_id].first;
+            dstToRId = Settings::flowId2SrcDst[flow_id].second;
+    }
+    else {
+            flow_id = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.dip], Settings::hostIp2IdMap[ch.sip], ch.udp.dport, ch.udp.sport)];
+            assert(Settings::flowId2SrcDst.find(flow_id) !=
+                Settings::flowId2SrcDst.end());  // Misconfig of Settings::hostIp2SwitchId - sip
+            srcToRId = Settings::flowId2SrcDst[flow_id].second;
+            dstToRId = Settings::flowId2SrcDst[flow_id].first;
+    }
+    if (Debug_log){
+        if (ch.l3Prot == 0x11){
+            printf("Debug info: switch:%u, packet role: 0x%x, srcToRId: %u, dstToRId: %u, Src id: %u, Dst id: %u\n", m_switch_id, ch.l3Prot, srcToRId, dstToRId, Settings::hostIp2IdMap[ch.sip], Settings::hostIp2IdMap[ch.dip]);
+        }
+        else{
+            printf("Debug info: switch:%u, packet role: 0x%x, srcToRId: %u, dstToRId: %u, Src id: %u, Dst id: %u\n", m_switch_id, ch.l3Prot, srcToRId, dstToRId, Settings::hostIp2IdMap[ch.dip], Settings::hostIp2IdMap[ch.sip]);
+        }
+    }
+
+    /** FILTER: Quickly filter intra-pod traffic */
+    if (srcToRId == dstToRId) {  // do normal routing (only one path)
+        DoSwitchSendToDev(p, ch);
+        return;
+    }
+
+    assert(srcToRId != dstToRId);  // Should not be in the same pod
+
+
 
     // get conweaveDataTag from packet
     ConWeaveDataTag conweaveDataTag;
@@ -425,7 +543,35 @@ void ConWeaveRouting::RouteInput(Ptr<Packet> p, CustomHeader &ch) {
         /** NOTE: ConWeave's control packets are forwarded with default flow-ECMP */
         if (!m_isToR) {
             SLB_LOG(PARSE_FIVE_TUPLE(ch) << "ConWeave Ctrl Pkts use flow-ECMP at non-ToR switches");
-            DoSwitchSendToDev(p, ch);
+            // DoSwitchSendToDev(p, ch);
+
+            if (foundConWeaveReplyTag){
+                uint32_t reply_hopCount = conweaveReplyTag.GetHopCount() + 1;
+                conweaveReplyTag.SetHopCount(reply_hopCount);
+                uint32_t reply_outDev = GetOutPortFromPath(conweaveReplyTag.GetPathId(), reply_hopCount);
+                p->AddPacketTag(conweaveReplyTag);
+                if (Reply_log){
+                    uint32_t flow_id = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.dip], Settings::hostIp2IdMap[ch.sip], ch.udp.dport, ch.udp.sport)];
+                    std::cout << "Reply info: " << " flow id: "<< flow_id << " Mid switch:" << m_switch_id << " hopCount:" << reply_hopCount << " outDev:" << reply_outDev;
+                    std::cout << " reply src node:" << Settings::hostIp2IdMap[ch.sip] << " reply dst node: " << Settings::hostIp2IdMap[ch.dip];
+                    std::cout << std::endl;
+                    std:: cout << PARSE_FIVE_TUPLE(ch) << "ConWeave Ctrl Pkts use flow-ECMP at non-ToR switches" << std::endl;
+                }
+                DoSwitchSend(p, ch, reply_outDev, 0);
+                return;
+            }
+
+            if (foundConWeaveNotifyTag){
+                uint32_t notify_hopCount = conweaveNotifyTag.GetHopCount() + 1;
+                conweaveNotifyTag.SetHopCount(notify_hopCount);
+                uint32_t notify_outDev = GetOutPortFromPath(conweaveNotifyTag.GetRoutePathId(), conweaveNotifyTag.GetHopCount());
+                p->AddPacketTag(conweaveNotifyTag);
+                if (Reply_log){
+                    std::cout << "Notify info: " << "Mid switch:" << m_switch_id << " hopCount:" << notify_hopCount << std::endl;
+                }
+                DoSwitchSend(p, ch, notify_outDev, 0);
+                return;
+            }
             return;
         }
     }
@@ -908,6 +1054,9 @@ void ConWeaveRouting::RouteInput(Ptr<Packet> p, CustomHeader &ch) {
                  */
                 if (m_pathAwareRerouting) {
                     if (rx_md.pkt_ecnbits == 0x03) {
+                        if(Notify_log){
+                            std::cout << "Notify info: generate Notify"<< std::endl;
+                        }
                         SendNotify(p, ch, rx_md.pkt_pathId);
                     }
                 }
@@ -917,10 +1066,16 @@ void ConWeaveRouting::RouteInput(Ptr<Packet> p, CustomHeader &ch) {
                  */
                 if (rx_md.pkt_flagData == ConWeaveDataTag::INIT) {
                     assert(rx_md.pkt_phase == 0);  // sanity check
+                    if (Reply_log){
+                        std::cout << "Reply info: generate Reply"<< std::endl;
+                    }
                     SendReply(p, ch, ConWeaveReplyTag::INIT, rx_md.pkt_epoch);
                 }
                 if (rx_md.pkt_flagData == ConWeaveDataTag::TAIL) {
                     assert(rx_md.pkt_phase == 0);  // sanity check
+                    if (Reply_log){
+                        std::cout << "Reply info: generate Reply"<< std::endl;
+                    }
                     SendReply(p, ch, ConWeaveReplyTag::TAIL,
                               rx_md.pkt_epoch);  // send reply
                 }
@@ -942,6 +1097,15 @@ void ConWeaveRouting::RouteInput(Ptr<Packet> p, CustomHeader &ch) {
             }
 
             if (foundConWeaveReplyTag) {  // Received REPLY
+                //检查接受的交换机是否是数据发送的交换机
+                if(Control_info_log){
+                    uint32_t show_flow_id = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.dip], Settings::hostIp2IdMap[ch.sip], ch.udp.dport, ch.udp.sport)];
+                    uint32_t Data_src_ToR = Settings::flowId2SrcDst[show_flow_id].first;
+                    if (Data_src_ToR != m_switch_id){
+                        assert(false && "Wrong Tor");
+                    }
+                }
+
                 conweaveTxMeta tx_md;
                 tx_md.pkt_flowkey = GetFlowKey(ch.dip, ch.sip, ch.udp.dport, ch.udp.sport);
                 tx_md.reply_flag = conweaveReplyTag.GetFlagReply();
@@ -990,14 +1154,22 @@ void ConWeaveRouting::RouteInput(Ptr<Packet> p, CustomHeader &ch) {
 
             if (m_pathAwareRerouting) {        // Received NOTIFY
                 if (foundConWeaveNotifyTag) {  // Received NOTIFY (from ECN)
+                    if(Control_info_log){
+                        uint32_t show_flow_id = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.dip], Settings::hostIp2IdMap[ch.sip], ch.udp.dport, ch.udp.sport)];
+                        uint32_t Data_src_ToR = Settings::flowId2SrcDst[show_flow_id].first;
+                        if (Data_src_ToR != m_switch_id){
+                            assert(false && "Wrong Tor");
+                        }
+                    } 
+
                     conweaveTxMeta tx_md;
                     auto congestedPathId = conweaveNotifyTag.GetPathId();
                     auto &pathEntry =
                         m_conweavePathTable[DoHash((uint8_t *)&congestedPathId, 4, m_switch_id) %
                                             m_conweavePathTable.size()];
-                    SLB_LOG(PARSE_REVERSE_FIVE_TUPLE(ch)
+                    std::cout<< PARSE_REVERSE_FIVE_TUPLE(ch)
                             << "[TxToR/GotNOTIFY] Sw(" << m_switch_id
-                            << ") =-*=-*=-*=-*=-*=-*=-=-*>>> pathId:" << congestedPathId);
+                            << ") =-*=-*=-*=-*=-*=-*=-=-*>>> pathId:" << congestedPathId << std::endl;
 
                     /**
                      * UPDATE: if entry is expired, overwrite not to use the congested path
@@ -1016,7 +1188,7 @@ void ConWeaveRouting::RouteInput(Ptr<Packet> p, CustomHeader &ch) {
                       << PARSE_FIVE_TUPLE(ch) << std::endl;
             assert(false && "No Tag is impossible");
         }
-        // should not reach here (TOR, but neither TxToR nor RxToR)
+        // should not reach here (TOR, but neither TxToR nor RxToR) 
         SLB_LOG(PARSE_FIVE_TUPLE(ch) << "Sw(" << m_switch_id << "),isToR:" << m_isToR);
         std::cout << __FILE__ << "(" << __LINE__ << "):" << Simulator::Now() << ","
                   << PARSE_FIVE_TUPLE(ch) << std::endl;
@@ -1025,6 +1197,11 @@ void ConWeaveRouting::RouteInput(Ptr<Packet> p, CustomHeader &ch) {
             "NOTIFY:%u\n",
             srcToRId, dstToRId, m_switch_id, m_isToR, foundConWeaveDataTag, foundConWeaveReplyTag,
             foundConWeaveNotifyTag);
+        std::cout << "false packet: " << PARSE_FIVE_TUPLE(ch) << ", packet role: " << std::hex << ch.l3Prot <<std::endl;
+        uint32_t ori_flow_id = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.dip], Settings::hostIp2IdMap[ch.sip], ch.udp.dport, ch.udp.sport)];
+        uint32_t ack_flow_id = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.sip], Settings::hostIp2IdMap[ch.dip], ch.udp.sport, ch.udp.dport)];
+        std::cout << "ori_flow_id: " << ori_flow_id << ", ack_flow_id: " << ack_flow_id << std::endl;
+        fflush(stdout);
         assert(false);
     }
 
