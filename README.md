@@ -49,7 +49,8 @@ This should build everything necessary for the simulator.
 #### 2. Run
 One can always just run the container: 
 ```shell
-docker run -it --name caver-sim -v $(pwd):/root caver-sim:version1 
+docker start caver-sim
+docker exec -it caver-sim /bin/bash
 cd ns-3.19;
 ./autorun.sh
 ```
