@@ -103,7 +103,7 @@ The script autorun.sh will run three different load balancing algorithms(ECMP, C
 The meaning of each entry's first 4 values is as follows: time, simulation id, cc_mode(1:DCQCN), load_mode(0:ECMP, 9:ConWeave, 10:CAVER).
 
 #### 4. Plot
-You can easily plot the results using the following script './show/all-to-all_visual.py' to generate picture as Fig 2 in the posters:
+You can easily plot the results using the following script `./show/all-to-all_visual.py` to generate picture as Fig 2 in the posters:
 Step 1: 
 After run the 'autorun.sh' script, find each algorithm 's Simulation ID in the last three entries of `./mix/.history` file.
 Step 2:
@@ -114,13 +114,11 @@ CAVER_id = 918924462
 conweave_id = 744923884
 ```
 
-See below for details of output results.
-
 
 ##### Topology
-To evaluate on fat-tree (K=8) topology, you can simply change the `TOPOLOGY` variable in `autorun.sh` to `fat_k8_100G_OS2`:
+To evaluate on topology of a fat-tree (K=4) with bond, you can simply change the `TOPOLOGY` variable in `autorun.sh` to `fat_k_4_OS1`:
 ```shell
-TOPOLOGY="leaf_spine_128_100G_OS2" # or, fat_k8_100G_OS2
+TOPOLOGY="fat_k_4_OS1"
 ```
 
 ##### Clean up
@@ -136,10 +134,9 @@ We include CAVER's parameter values into `./run.py` based on flow control model 
 ### Simulator Structure
 Most implementations of network load balancing are located in the directory `./src/point-to-point/model`.
 
-* `switch-node.h/cc`: Switching logic that includes a default multi-path routing protocol (e.g., ECMP) and DRILL.
+* `switch-node.h/cc`: Switching logic that includes a default multi-path routing protocol (e.g., ECMP) .
 * `switch-mmu.h/cc`: Ingress/egress admission control and PFC.
-* `conga-routing.h/cc`: Conga routing protocol.
-* `letflow-routing.h/cc`: Letflow routing protocol.
+* `dv-routing.cc`: CAVER routing protocol.
 * `conweave-routing.h/cc`: ConWeave routing protocol.
 * `conweave-voq.h/cc`: ConWeave in-network reordering buffer.
 * `settings.h/cc`: Global variables for logging and debugging.
