@@ -68,11 +68,12 @@ In the script, you can easily change the network load (e.g., `50%`), runtime (e.
 This script first calls a traffic generator `./traffic_gen/traffic_gen.py` to create an input trace.
 Then, it runs NS-3 simulation script `./scratch/network-load-balance.cc`.
 
-To plot the FCT graph, see below or refer to the script `./analysis/plot_fct.py`.
+This scirpt runs in the background, and may take servel hours to finish a simulation of 0.1 second.
 
 
 #### 3. Plot
-You can easily plot the results using the following command:
+You can easily plot the results using the following script ./show/all-to-all_visual.py:
+
 ```shell
 python3 ./analysis/plot_fct.py
 python3 ./analysis/plot_queue.py
