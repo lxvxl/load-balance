@@ -70,8 +70,24 @@ Then, it runs NS-3 simulation script `./scratch/network-load-balance.cc`.
 
 This scirpt runs in the background, and may take servel hours to finish a simulation of 0.1 second.
 
+#### 3.results
+The results are located at `./mix/output`, such as uplink usage (Figure 14), queue number usage per port (Figure 15), etc.
 
-#### 3. Plot
+* At `./mix/output`, several raw data is stored such as 
+  * Flow Completion Time (`XXX_out_fct.txt`), - Figure 12, 13
+  * PFC generation (`XXX_out_pfc.txt`), 
+  * Uplink's utility (`XXX_out_uplink.txt`), - Figure 14
+  * Number of connections (`XXX_out_conn.txt`), 
+  * Congestion Notification Packet (`XXX_out_cnp.txt`).
+  * CDF of number of queues usage per egress port (`XXX_out_voq_per_dst_cdf.txt`). - Figure 15 
+  * CDF of total queue memory overhead per switch (`XXX_out_voq_cdf.txt`). - Figure 16
+  
+* Each run of simulation creates a repository in `./mix/output` with simulation ID (10-digit number).
+* Inside the folder, you can check the simulation config `config.txt` and output log `config.log`. 
+* The history of simulations will be recorded in `./mix/.history`. 
+
+
+#### 4. Plot
 You can easily plot the results using the following script ./show/all-to-all_visual.py:
 
 ```shell
