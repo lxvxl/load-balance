@@ -254,7 +254,7 @@ def main():
         print("python ./traffic_gen/traffic_gen.py -c {cdf} -n {n_host} -l {load} -b {bw} -t {time} -o {output}".format(
             cdf=os.getcwd() + "/../traffic_gen/" + args.cdf + ".txt",
             n_host=n_host,
-            load=hostload / 100.0,
+            load=hostload / 50.0,
             bw=args.bw + "G",
             time=args.simul_time,
             output=os.getcwd() + "/config/" + flow + ".txt"))
@@ -262,7 +262,7 @@ def main():
         os.system("python ./traffic_gen/traffic_gen.py -c {cdf} -n {n_host} -l {load} -b {bw} -t {time} -o {output}".format(
             cdf=os.getcwd() + "/traffic_gen/" + args.cdf + ".txt",
             n_host=n_host,
-            load=hostload / 100.0,
+            load=hostload / 50.0,
             bw=args.bw + "G",
             time=args.simul_time,
             output=os.getcwd() + "/config/" + flow + ".txt"))
