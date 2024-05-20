@@ -103,27 +103,19 @@ The script autorun.sh will run three different load balancing algorithms(ECMP, C
 The meaning of each entry's first 4 values is as follows: time, simulation id, cc_mode(1:DCQCN), load_mode(0:ECMP, 9:ConWeave, 10:CAVER).
 
 #### 4. Plot
-You can easily plot the results using the following script ./show/all-to-all_visual.py to generate picture as Fig 2 in the posters:
+You can easily plot the results using the following script './show/all-to-all_visual.py' to generate picture as Fig 2 in the posters:
 Step 1: 
-After run the 'autorun.sh' script, find each algorithm 's Simulation ID in the last three entries of `./mix/.history` file 
+After run the 'autorun.sh' script, find each algorithm 's Simulation ID in the last three entries of `./mix/.history` file.
+Step 2:
+Add each algorithm's simulation ID to the './show/all-to-all_visual.py' as follows
+```shell
+fecmp_id = 176527761
+CAVER_id = 918924462
+conweave_id = 744923884
+```
 
 See below for details of output results.
- 
-##### Output
-As well as above figures, other results are located at `./mix/output`, such as uplink usage (Figure 14), queue number usage per port (Figure 15), etc.
 
-* At `./mix/output`, several raw data is stored such as 
-  * Flow Completion Time (`XXX_out_fct.txt`), - Figure 12, 13
-  * PFC generation (`XXX_out_pfc.txt`), 
-  * Uplink's utility (`XXX_out_uplink.txt`), - Figure 14
-  * Number of connections (`XXX_out_conn.txt`), 
-  * Congestion Notification Packet (`XXX_out_cnp.txt`).
-  * CDF of number of queues usage per egress port (`XXX_out_voq_per_dst_cdf.txt`). - Figure 15 
-  * CDF of total queue memory overhead per switch (`XXX_out_voq_cdf.txt`). - Figure 16
-  
-* Each run of simulation creates a repository in `./mix/output` with simulation ID (10-digit number).
-* Inside the folder, you can check the simulation config `config.txt` and output log `config.log`. 
-* The history of simulations will be recorded in `./mix/.history`. 
 
 ##### Topology
 To evaluate on fat-tree (K=8) topology, you can simply change the `TOPOLOGY` variable in `autorun.sh` to `fat_k8_100G_OS2`:
