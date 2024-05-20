@@ -12,7 +12,7 @@
 #include "qbb-net-device.h"
 #include "rdma-queue-pair.h"
 
-namespace ns3 {
+namespace ns3 { 
 
 struct RdmaInterfaceMgr {
     Ptr<QbbNetDevice> dev;
@@ -60,6 +60,7 @@ class RdmaHw : public Object {
                              uint16_t pg);          // get the lookup key for m_qpMap
     Ptr<RdmaQueuePair> GetQp(uint64_t key);         // get the qp
     uint32_t GetNicIdxOfQp(Ptr<RdmaQueuePair> qp);  // get the NIC index of the qp
+    std::vector<uint32_t> Hashlist;                 // hash list for ECMP
     void DeleteQueuePair(Ptr<RdmaQueuePair> qp);    // delete TxQP
 
     void AddQueuePair(uint64_t size, uint16_t pg, Ipv4Address _sip, Ipv4Address _dip,
