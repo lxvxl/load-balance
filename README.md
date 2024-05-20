@@ -39,12 +39,12 @@ Then, you do this:
 docker build -t caver-sim:version1 .
 ```
 
-Once the container is built, do this from the root directory:
+Once the container is built, do this from the root directory: This should build everything necessary for the simulator.
 ```shell
 docker run -it -v $(pwd):/root caver-sim:version1 bash -c "cd ns-3.19; ./waf configure --build-profile=optimized; ./waf"
 ```
 
-This should build everything necessary for the simulator.
+
 Do this to build a docker for the first time.(Once this is built, one can use the code in 2.Run to enter this docker)
 ```shell
 docker run -it --name caver-sim -v $(pwd):/root caver-sim:version1
