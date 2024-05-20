@@ -71,7 +71,7 @@ Then, it runs NS-3 simulation script `./scratch/network-load-balance.cc`.
 This scirpt runs in the background, and may take servel hours to finish a simulation of 0.1 second.
 
 #### 3.results
-The results are located at `./mix/output`, such as uplink usage (Figure 14), queue number usage per port (Figure 15), etc.
+The results are located at `./mix/output`.
 
 * At `./mix/output`, several raw data is stored such as 
   * Flow Completion Time (`XXX_out_fct.txt`), - Figure 12, 13
@@ -86,6 +86,21 @@ The results are located at `./mix/output`, such as uplink usage (Figure 14), que
 * Inside the folder, you can check the simulation config `config.txt` and output log `config.log`. 
 * The history of simulations will be recorded in `./mix/.history`. 
 
+The script autorun.sh will run 3 load balancing algorithms(ECMP, ConWeave and CAVER), each method will be allocated a simulation ID(10-digit number), and the newest simulation ID will be added to the end of the `./mix/.history` file. The structs are as follows
+```shell
+05/20/24,176527761,1,0,1000,4,16,64,400,1,0,0,0,fat_k_4_OS1,100,AliStorage2019,60,0.1
+./waf --run 'scratch/network-load-balance /root/ns-3.19/mix/output/176527761/config.txt' > /root/ns-3.19/mix/output/176527761/config.log 2>&1
+./waf --run 'scratch/network-load-balance' --command-template='gdb --args %s /root/ns-3.19/mix/output/176527761/config.txt'
+
+05/20/24,918924462,1,9,1000,4,16,64,600,1,0,0,0,fat_k_4_OS1,100,AliStorage2019,60,0.1
+./waf --run 'scratch/network-load-balance /root/ns-3.19/mix/output/918924462/config.txt' > /root/ns-3.19/mix/output/918924462/config.log 2>&1
+./waf --run 'scratch/network-load-balance' --command-template='gdb --args %s /root/ns-3.19/mix/output/918924462/config.txt'
+
+05/20/24,744923884,1,10,1000,4,16,64,400,1,0,0,0,fat_k_4_OS1,100,AliStorage2019,60,0.1
+./waf --run 'scratch/network-load-balance /root/ns-3.19/mix/output/744923884/config.txt' > /root/ns-3.19/mix/output/744923884/config.log 2>&1
+./waf --run 'scratch/network-load-balance' --command-template='gdb --args %s /root/ns-3.19/mix/output/744923884/config.txt'
+```
+The meaning of each entry's first 4 values is as follows: time, simulation id, cc_mode(1:DCQCN), load_mode(0:ECMP, 9:ConWeave, 10:CAVER).
 
 #### 4. Plot
 You can easily plot the results using the following script ./show/all-to-all_visual.py:
