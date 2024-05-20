@@ -88,7 +88,6 @@ As well as above figures, other results are located at `./mix/output`, such as u
   
 * Each run of simulation creates a repository in `./mix/output` with simulation ID (10-digit number).
 * Inside the folder, you can check the simulation config `config.txt` and output log `config.log`. 
-* The output files include post-processed files such as CDF results.
 * The history of simulations will be recorded in `./mix/.history`. 
 
 ##### Topology
@@ -104,7 +103,7 @@ To clean all data of previous simulation results, you can run the command:
 ```
 
 #### ConWeave Parameters
-We include ConWeave's parameter values into `./run.py` based on flow control model and topology.  
+We include CAVER's parameter values into `./run.py` based on flow control model and topology.  
 
 
 ### Simulator Structure
