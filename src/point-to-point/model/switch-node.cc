@@ -15,6 +15,9 @@
 #include "ns3/uinteger.h"
 #include "ppp-header.h"
 #include "qbb-net-device.h"
+#include <arpa/inet.h> // 包含 inet_addr 和 inet_ntoa 函数
+#include <cstdint> // 包含 uint32_t
+#include <random>
 
 namespace ns3 {
 
@@ -35,12 +38,26 @@ TypeId SwitchNode::GetTypeId(void) {
 }
 
 SwitchNode::SwitchNode() {
-    m_ecmpSeed = m_id;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint32_t> dis(0, std::numeric_limits<uint32_t>::max());
+
+    // 生成一个随机整数
+    uint32_t random_integer = dis(gen);
+
+    m_ecmpSeed = random_integer ^ m_id;
+    // m_ecmpSeed = m_id;
     m_isToR = false;
     m_node_type = 1;
     m_isToR = false;
     m_drill_candidate = 2;
     m_mmu = CreateObject<SwitchMmu>();
+    
+    //DV's Callback for switch functions
+    m_mmu->m_dvRouting.SetSwitchSendCallback(MakeCallback(&SwitchNode::DoSwitchSend, this));
+    m_mmu->m_dvRouting.SetSwitchSendToDevCallback(
+        MakeCallback(&SwitchNode::SendToDevContinue, this));
+
     // Conga's Callback for switch functions
     m_mmu->m_congaRouting.SetSwitchSendCallback(MakeCallback(&SwitchNode::DoSwitchSend, this));
     m_mmu->m_congaRouting.SetSwitchSendToDevCallback(
@@ -50,8 +67,16 @@ SwitchNode::SwitchNode() {
     m_mmu->m_conweaveRouting.SetSwitchSendToDevCallback(
         MakeCallback(&SwitchNode::SendToDevContinue, this));
 
+    //DV's Callback for switch functions
+    m_mmu->m_dvRouting.SetSwitchSendCallback(MakeCallback(&SwitchNode::DoSwitchSend, this));
+    m_mmu->m_dvRouting.SetSwitchSendToDevCallback(
+        MakeCallback(&SwitchNode::SendToDevContinue, this));
+    // pCnt:端口数量
     for (uint32_t i = 0; i < pCnt; i++) {
         m_txBytes[i] = 0;
+    }
+    for (uint32_t i = 0; i < pCnt; i++) {
+        m_rxBytes[i] = 0;
     }
 }
 
@@ -89,7 +114,10 @@ uint32_t SwitchNode::DoLbFlowECMP(Ptr<const Packet> p, const CustomHeader &ch,
 uint32_t SwitchNode::DoLbConga(Ptr<Packet> p, CustomHeader &ch, const std::vector<int> &nexthops) {
     return DoLbFlowECMP(p, ch, nexthops);  // flow ECMP (dummy)
 }
-
+/*-----------------DV-----------------*/
+uint32_t SwitchNode::DoLbDV(Ptr<Packet> p, CustomHeader &ch, const std::vector<int> &nexthops) {
+    return DoLbFlowECMP(p, ch, nexthops);  // flow ECMP (dummy)
+}
 /*-----------------Letflow-----------------*/
 uint32_t SwitchNode::DoLbLetflow(Ptr<Packet> p, CustomHeader &ch,
                                  const std::vector<int> &nexthops) {
@@ -161,6 +189,7 @@ void SwitchNode::CheckAndSendPfc(uint32_t inDev, uint32_t qIndex) {
         if (pClasses[j]) {
             uint32_t paused_time = device->SendPfc(j, 0);
             m_mmu->SetPause(inDev, j, paused_time);
+            std::cout << "PFC event: " << std::endl; 
             m_mmu->m_pause_remote[inDev][j] = true;
             /** PAUSE SEND COUNT ++ */
         }
@@ -171,6 +200,7 @@ void SwitchNode::CheckAndSendPfc(uint32_t inDev, uint32_t qIndex) {
 
         if (m_mmu->GetResumeClasses(inDev, j)) {
             device->SendPfc(j, 1);
+            std::cout << "PFC event: " << std::endl; 
             m_mmu->SetResume(inDev, j);
             m_mmu->m_pause_remote[inDev][j] = false;
         }
@@ -180,6 +210,7 @@ void SwitchNode::CheckAndSendResume(uint32_t inDev, uint32_t qIndex) {
     Ptr<QbbNetDevice> device = DynamicCast<QbbNetDevice>(m_devices[inDev]);
     if (m_mmu->GetResumeClasses(inDev, qIndex)) {
         device->SendPfc(qIndex, 1);
+        std::cout << "PFC Resumeevent: " << std::endl;
         m_mmu->SetResume(inDev, qIndex);
     }
 }
@@ -188,9 +219,42 @@ void SwitchNode::CheckAndSendResume(uint32_t inDev, uint32_t qIndex) {
  *              MAIN LOGICS                 *
  *******************************************/
 
+
+std::string convertToSpaceSeparatedString(uint32_t id, CustomHeader &ch) {
+    std::ostringstream oss;
+    oss << std::to_string(id) << " " << Settings::hostIp2IdMap[ch.sip] << " " << Settings::hostIp2IdMap[ch.dip] << " " << ch.udp.sport << " " << ch.udp.dport;
+    return oss.str();
+}
 // This function can only be called in switch mode
 bool SwitchNode::SwitchReceiveFromDevice(Ptr<NetDevice> device, Ptr<Packet> packet,
                                          CustomHeader &ch) {
+    //TODO: my code to  visualize the packet header
+    if (ch.l3Prot == 0x11)  // XXX RDMA traffic on UDP
+    {
+        // std::string head = convertToSpaceSeparatedString(m_id, ch);
+        // if (headSet.find(head) == headSet.end()) {
+        //     headSet.insert(head);
+        //     std::cout << "flow passed:" <<head << std::endl;
+        // }
+        uint32_t flow_id = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.sip], Settings::hostIp2IdMap[ch.dip], ch.udp.sport, ch.udp.dport)];
+        // std::cout << "Flow ID: " << flow_id << std::endl;
+        if (flow_bytes.find(flow_id) == flow_bytes.end()) {
+            std::cout << "flow_passed: " << "switch_id "  <<  m_id << " flow_id "<< flow_id << std::endl;
+        }
+        flow_bytes[flow_id] += packet->GetSize();
+    }
+    uint32_t ifIndex = device->GetIfIndex();
+        //在这里显示与PFC（ingress相关的内容）
+        // 
+    // if (m_mmu->GetusedIngressPortBytes(ifIndex)!= 0)
+        // {
+        // std::cout<< "Ingress buffer" << ",Sw:" << m_id << "," 
+        //             << "ingress port:" << ifIndex
+        //             << ",m_usedIngressPortBytes:" << m_mmu->GetusedIngressPortBytes(ifIndex)
+        //             << ",m_port_max_shared_cell:" << m_mmu->Getport_max_shared_cell()
+        //             << ",At " << Simulator::Now() << std::endl;
+        // }
+    m_rxBytes[ifIndex] += packet->GetSize();
     SendToDev(packet, ch);
     return true;
 }
@@ -213,6 +277,11 @@ void SwitchNode::SendToDev(Ptr<Packet> p, CustomHeader &ch) {
         return;
     }
 
+    if (Settings::lb_mode == 10) {
+        m_mmu->m_dvRouting.RouteInput(p, ch);
+        return;
+    }
+
     // Others
     SendToDevContinue(p, ch);
 }
@@ -222,7 +291,21 @@ void SwitchNode::SendToDevContinue(Ptr<Packet> p, CustomHeader &ch) {
     if (idx >= 0) {
         NS_ASSERT_MSG(m_devices[idx]->IsLinkUp(),
                       "The routing table look up should return link that is up");
-
+        // 如果时采用DV的方法，且是UdP包的话，则应该更新一下Dre，这部分是采用ECMP或者直接发送的方法
+        if (Settings::lb_mode == 10 and ch.l3Prot == 0x11) {
+            m_mmu->m_dvRouting.UpdateLocalDre(p, ch, idx);
+            if (m_mmu->m_dvRouting.DreTable_log){
+                if (m_isToR)
+                    printf("Dre Table: Dst switch %d\n", m_mmu->m_dvRouting.m_switch_id);
+                else
+                    printf("Dre Table: Mid switch %d\n", m_mmu->m_dvRouting.m_switch_id);
+                for (auto it = m_mmu->m_dvRouting.m_DreMap.begin(); it != m_mmu->m_dvRouting.m_DreMap.end(); ++it) {
+                    uint32_t ce = it->second;
+                    uint32_t localce = m_mmu->m_dvRouting.QuantizingX(it->first, ce);
+                    std::cout << "Port: " << it->first << ", CE: " << it->second << ",localCE: " << localce << std::endl;
+                }
+            }
+        }
         // determine the qIndex
         uint32_t qIndex;
         if (ch.l3Prot == 0xFF || ch.l3Prot == 0xFE ||
@@ -234,7 +317,18 @@ void SwitchNode::SendToDevContinue(Ptr<Packet> p, CustomHeader &ch) {
             qIndex = (ch.l3Prot == 0x06 ? 1 : ch.udp.pg);  // if TCP, put to queue 1. Otherwise, it
                                                            // would be 3 (refer to trafficgen)
         }
-
+        // 在这个位置输出egress缓存相关的内容
+        // if (m_mmu->GetusedEgressQSharedBytes(idx, qIndex) != 0)
+        // {
+        // std::cout<< "Egress buffer" << ",Sw:" << m_id << "," 
+        //             << "egress port:" << idx 
+        //             << ",m_usedEgressQSharedBytes:" << m_mmu->GetusedEgressQSharedBytes(idx, qIndex) 
+        //             << ",kmin:" << m_mmu->kmin[idx]
+        //             << ",kmax:" << m_mmu->kmax[idx]
+        //             << ",pmax:" << m_mmu->pmax[idx]
+        //             << ",m_op_uc_port_config1_cell:" << m_mmu->Getop_uc_port_config1_cell()
+        //             << ",At " << Simulator::Now() << std::endl;
+        // }
         DoSwitchSend(p, ch, idx, qIndex);  // m_devices[idx]->SwitchSend(qIndex, p, ch);
         return;
     }
@@ -272,6 +366,8 @@ int SwitchNode::GetOutDev(Ptr<Packet> p, CustomHeader &ch) {
             return DoLbLetflow(p, ch, nexthops);
         case 9:
             return DoLbConWeave(p, ch, nexthops); /** DUMMY: Do ECMP */
+        case 10:
+            return DoLbDV(p, ch, nexthops); /** DUMMY: Do ECMP */
         default:
             std::cout << "Unknown lb_mode(" << Settings::lb_mode << ")" << std::endl;
             assert(false);
@@ -303,27 +399,27 @@ void SwitchNode::DoSwitchSend(Ptr<Packet> p, CustomHeader &ch, uint32_t outDev, 
                 m_mmu->UpdateIngressAdmission(inDev, qIndex, p->GetSize());
                 m_mmu->UpdateEgressAdmission(outDev, qIndex, p->GetSize());
             } else { /** DROP: At Ingress */
-#if (0)
-                // /** NOTE: logging dropped pkts */
-                // std::cout << "LostPkt ingress - Sw(" << m_id << ")," << PARSE_FIVE_TUPLE(ch)
-                //           << "L3Prot:" << ch.l3Prot
-                //           << ",Size:" << p->GetSize()
-                //           << ",At " << Simulator::Now() << std::endl;
+#if (1)
+                /** NOTE: logging dropped pkts */
+                std::cout << "LostPkt ingress - Sw(" << m_id << ")," << PARSE_FIVE_TUPLE(ch)
+                          << "L3Prot:" << ch.l3Prot
+                          << ",Size:" << p->GetSize()
+                          << ",At " << Simulator::Now() << std::endl;
 #endif
                 Settings::dropped_pkt_sw_ingress++;
                 return;  // drop
             }
         } else { /** DROP: At Egress */
-#if (0)
-            // /** NOTE: logging dropped pkts */
-            // std::cout << "LostPkt egress - Sw(" << m_id << ")," << PARSE_FIVE_TUPLE(ch)
-            //           << "L3Prot:" << ch.l3Prot << ",Size:" << p->GetSize() << ",At "
-            //           << Simulator::Now() << std::endl;
+#if (1)
+            /** NOTE: logging dropped pkts */
+            std::cout << "LostPkt egress - Sw(" << m_id << ")," << PARSE_FIVE_TUPLE(ch)
+                      << "L3Prot:" << ch.l3Prot << ",Size:" << p->GetSize() << ",At "
+                      << Simulator::Now() << std::endl;
 #endif
             Settings::dropped_pkt_sw_egress++;
             return;  // drop
         }
-
+        //此时已经判断完了是否要DROP了
         CheckAndSendPfc(inDev, qIndex);
     }
 
@@ -419,6 +515,20 @@ void SwitchNode::AddTableEntry(Ipv4Address &dstAddr, uint32_t intf_idx) {
     uint32_t dip = dstAddr.Get();
     m_rtTable[dip].push_back(intf_idx);
 }
+void SwitchNode::AddDVTableEntry(Ipv4Address &dstAddr, uint32_t intf_idx, Time now) {
+    uint32_t dip = dstAddr.Get();
+    auto dstIter = m_mmu->m_dvRouting.m_DVTable.find(dip);
+    if (dstIter == m_mmu->m_dvRouting.m_DVTable.end()) {
+        // 如果不存在，则创建一个新的条目
+        m_mmu->m_dvRouting.m_DVTable[dip] = std::map<uint32_t, DVInfo>();
+    }
+    DVInfo dvInfo;
+    dvInfo._ce = 0;
+    dvInfo._updateTime = now;
+    dvInfo._valid = false;
+    m_mmu->m_dvRouting.m_DVTable[dip][intf_idx] = dvInfo;
+    
+}
 
 void SwitchNode::ClearTable() { m_rtTable.clear(); }
 
@@ -426,5 +536,11 @@ uint64_t SwitchNode::GetTxBytesOutDev(uint32_t outdev) {
     assert(outdev < pCnt);
     return m_txBytes[outdev];
 }
-
+uint64_t SwitchNode::GetRxBytesOutDev(uint32_t outdev) {
+    assert(outdev < pCnt);
+    return m_rxBytes[outdev];
 } /* namespace ns3 */
+std::unordered_map<uint32_t, uint64_t> SwitchNode::GetFlowBytes(){
+    return flow_bytes;
+}
+}
