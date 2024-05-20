@@ -36,7 +36,7 @@ WORKDIR /root
 
 Then, you do this: 
 ```shell
-docker build -t cw-sim:sigcomm23ae .
+docker build -t CAVER-sim:version1 .
 ```
 
 Once the container is built, do this from the root directory:
