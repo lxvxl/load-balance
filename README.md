@@ -1,6 +1,6 @@
 # NS-3 Simulator for RDMA Network Load Balancing
 
-This is a Github repository for the SIGCOMM'23 paper "[Network Load Balancing with In-network Reordering Support for RDMA](https://doi.org/10.1145/3603269.3604849)".
+This is an NS-3 simulator for ""
 
 We describe how to run this repository either on docker or using your local machine with `ubuntu:20.04`. 
 
