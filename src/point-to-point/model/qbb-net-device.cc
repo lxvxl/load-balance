@@ -253,10 +253,16 @@ void QbbNetDevice::TransmitComplete(void) {
 }
 
 void QbbNetDevice::DequeueAndTransmit(void) {
+    // std::cerr << "DequeueAndTransmit" << std::endl;
     NS_LOG_FUNCTION(this);
     if (!m_linkUp) return;                 // if link is down, return
     if (m_txMachineState == BUSY) return;  // Quit if channel busy
     Ptr<Packet> p;
+    for (int i = 0; i < qCnt; ++i) {
+        if (m_paused[i]) {
+            std::cout << "node: " << m_node->GetId() << ",端口paused:" << i << ",at" << Simulator::Now() <<std::endl;
+        }
+    }
     if (m_node->GetNodeType() == 0) {  // server
         int qIndex = m_rdmaEQ->GetNextQindex(m_paused);
         if (qIndex != -1024) {
@@ -277,7 +283,7 @@ void QbbNetDevice::DequeueAndTransmit(void) {
             // update for the next avail time
             m_rdmaPktSent(lastQp, p, m_tInterframeGap);
         } else {  // no packet to send
-            NS_LOG_INFO("PAUSE prohibits send at node " << m_node->GetId());
+            // NS_LOG_INFO("PAUSE prohibits send at node " << m_node->GetId());
             Time t = Simulator::GetMaximumSimulationTime();
             bool valid = false;
             for (uint32_t i = 0; i < m_rdmaEQ->GetFlowCount(); i++) {
@@ -294,6 +300,7 @@ void QbbNetDevice::DequeueAndTransmit(void) {
         }
         return;
     } else {                               // switch, doesn't care about qcn, just send
+        // std::cout << "switch id" << m_node->GetId() << ",m_queue:" << m_queue->GetNBytesTotal()<<", at" << Simulator::Now() << std::endl;
         p = m_queue->DequeueRR(m_paused);  // this is round-robin
         if (p != 0) {
             m_snifferTrace(p);
@@ -316,7 +323,9 @@ void QbbNetDevice::DequeueAndTransmit(void) {
             TransmitStart(p);
             return;
         } else {  // No queue can deliver any packet
-            NS_LOG_INFO("PAUSE prohibits send at node " << m_node->GetId());
+            // NS_LOG_INFO("PAUSE prohibits send at node " << m_node->GetId());
+            
+            // std::cout << "PAUSE prohibits send at node " << m_node->GetId() << std::endl;
             if (m_node->GetNodeType() == 0 &&
                 m_qcnEnabled) {  // nothing to send, possibly due to qcn flow control, if so
                                  // reschedule sending
@@ -366,10 +375,11 @@ void QbbNetDevice::Receive(Ptr<Packet> packet) {
     CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
     ch.getInt = 1;  // parse INT header
     packet->PeekHeader(ch);
+    // std::cout << "Receive, id: " << m_node->GetId() << " l3Prot " << std::hex << ch.l3Prot << std::endl;
     if (ch.l3Prot == 0xFE) {  // PFC
+        std::cout << "PFC!!" << std::endl;
         if (!m_qbbEnabled) return;
         unsigned qIndex = ch.pfc.qIndex;
-        // std::cerr << "PFC!!" << std::endl;
         if (ch.pfc.time > 0) {
             m_tracePfc(1);
             m_paused[qIndex] = true;
@@ -396,11 +406,13 @@ void QbbNetDevice::Receive(Ptr<Packet> packet) {
 }
 
 bool QbbNetDevice::Send(Ptr<Packet> packet, const Address &dest, uint16_t protocolNumber) {
+    // std::cout << "Send: " << m_node->GetNodeType() <<std::endl;
     NS_ASSERT_MSG(false, "QbbNetDevice::Send not implemented yet\n");
     return false;
 }
 
 bool QbbNetDevice::SwitchSend(uint32_t qIndex, Ptr<Packet> packet, CustomHeader &ch) {
+    // std::cout << "SwitchSend" << std::endl;
     m_macTxTrace(packet);
     m_traceEnqueue(packet, qIndex);
     m_queue->Enqueue(packet, qIndex);
@@ -409,6 +421,7 @@ bool QbbNetDevice::SwitchSend(uint32_t qIndex, Ptr<Packet> packet, CustomHeader 
 }
 
 uint32_t QbbNetDevice::SendPfc(uint32_t qIndex, uint32_t type) {
+    std::cout << "SendPfc" << std::endl;
     if (!m_qbbEnabled) return 0;
     Ptr<Packet> p = Create<Packet>(0);
     PauseHeader pauseh((type == 0 ? m_pausetime : 0), m_queue->GetNBytes(qIndex), qIndex);
@@ -452,7 +465,7 @@ bool QbbNetDevice::TransmitStart(Ptr<Packet> p) {
     Time txCompleteTime = txTime + m_tInterframeGap;
     NS_LOG_LOGIC("Schedule TransmitCompleteEvent in " << txCompleteTime.GetSeconds() << "sec");
     Simulator::Schedule(txCompleteTime, &QbbNetDevice::TransmitComplete, this);
-
+    
     bool result = m_channel->TransmitStart(p, this, txTime);
     if (result == false) {
         m_phyTxDropTrace(p);
