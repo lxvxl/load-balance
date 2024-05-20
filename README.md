@@ -1,6 +1,6 @@
 # NS-3 Simulator for RDMA Network Load Balancing
 
-This is an NS-3 simulator for ""
+This is an NS-3 simulator for "Congestion Aware Load Balancing For RDMA with Vector Protocol". We add CAVER components to 
 
 We describe how to run this repository either on docker or using your local machine with `ubuntu:20.04`. 
 
