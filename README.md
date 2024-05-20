@@ -105,7 +105,7 @@ The meaning of each entry's first 4 values is as follows: time, simulation id, c
 #### 4. Plot
 You can easily plot the results using the following script ./show/all-to-all_visual.py to generate picture as Fig 2 in the posters:
 Step 1: 
-Find each algorithm 's Simulation ID in the `./mix/.history`
+After run the 'autorun.sh' script, find each algorithm 's Simulation ID in the last three entries of `./mix/.history` file 
 
 See below for details of output results.
  
