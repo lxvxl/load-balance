@@ -72,49 +72,6 @@ See below for details of output results.
 
 
 
----
-
-## Run NS-3 on Ubuntu 20.04
-#### 0. Prerequisites
-We tested the simulator on Ubuntu 20.04, but latest versions of Ubuntu should also work.
-```shell
-sudo apt install build-essential python3 libgtk-3-0 bzip2
-```
-For plotting, we use `numpy`, `matplotlib`, and `cycler` for python3:
-```shell
-python3 -m pip install numpy matplotlib cycler
-```
-
-
-#### 1. Configure & Build
-```shell
-wget https://www.nsnam.org/releases/ns-allinone-3.19.tar.bz2
-tar -xvf ns-allinone-3.19.tar.bz2
-cd ns-allinone-3.19
-rm -rf ns-3.19
-git clone https://github.com/conweave-project/conweave-ns3.git ns-3.19
-cd ns-3.19
-./waf configure --build-profile=optimized
-./waf
-```
-
-
-#### 2. Simulation
-##### Run
-You can reproduce the simulation results of Figure 12 and 13 (FCT slowdown), Figure 16 (Queue usage per switch) by running the script:
-```shell
-./autorun.sh
-```
-
-In the script, you can easily change the network load (e.g., `50%`), runtime (e.g., `0.1s`), or topology (e.g., `leaf-spine`).
-This takes a few hours, and requires 8 CPU cores and 10G RAM.
-Note that we do not run `DRILL` since it takes too much time due to many out-of-order packets.
-
-
-If you want to run the simulation individually, try this command:
-```shell
-python3 ./run.py --h
-```
 
 It first calls a traffic generator `./traffic_gen/traffic_gen.py` to create an input trace.
 Then, it runs NS-3 simulation script `./scratch/network-load-balance.cc`. 
