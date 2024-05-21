@@ -70,7 +70,7 @@ Then, it runs NS-3 simulation script `./scratch/network-load-balance.cc`.
 
 This scirpt runs in the background, and may take servel hours to finish a simulation of 0.1 second.
 
-#### 3.results
+#### 3.Results
 The results are located at `./mix/output`.
 
 * At `./mix/output`, several raw data is stored such as 
