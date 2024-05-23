@@ -106,6 +106,12 @@ The script autorun.sh will run three different load balancing algorithms(ECMP, C
 The meaning of each entry's first 4 values is as follows: time, simulation id, cc_mode(1:DCQCN), load_mode(0:ECMP, 9:ConWeave, 10:CAVER).
 
 #### 4. Plot
+You can either run experiment following the previous steps.
+
+But as each experiment may take several hours, you can download result from the below link:
+
+https://cloud.tsinghua.edu.cn/d/b55b00eb0ac240db983b/
+
 You can easily plot the results using the following script `./show/all-to-all_visual.py` to generate picture as Fig 2 in the posters:
 
 Step 1: 
