@@ -108,7 +108,7 @@ The meaning of each entry's first 4 values is as follows: time, simulation id, c
 #### 4. Plot
 You can either run experiment following the previous steps.
 
-But as each experiment may take several hours, you can download result from the below link and save them to the `./mix/output` folder (** we recommand this way**):
+But as each experiment may take several hours, you can download result from the below link and save them to the `./mix/output` folder ():
 
 [results of CAVER](https://cloud.tsinghua.edu.cn/d/b55b00eb0ac240db983b/) 
 
