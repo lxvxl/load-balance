@@ -119,7 +119,7 @@ Step 1:
 After run the 'autorun.sh' script, find each algorithm 's Simulation ID in the last three entries of `./mix/.history` file.
 
 Step 2:
-Add each algorithm's simulation ID to the './show/all-to-all_visual.py' as the following example (3-tier fat_tree, k = 4, load = 49%).
+Add each algorithm's simulation ID to the `./show/all-to-all_visual.py` as the following example (3-tier fat_tree, k = 4, load = 49%).
 ```shell
 fecmp_id = 497547479
 conweave_id = 907715927
