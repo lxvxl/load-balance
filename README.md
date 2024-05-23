@@ -156,7 +156,7 @@ Most implementations of network load balancing are located in the directory `./s
 * `switch-node.h/cc`: Switching logic that includes a default multi-path routing protocol (e.g., ECMP) .
 * `switch-mmu.h/cc`: Ingress/egress admission control and PFC.
 * `dv-routing.cc`: CAVER routing protocol.
-* `conweave-routing.h/cc`: ConWeave routing protocol.
+* `conweave-routing.h/cc`: ConWeave routing protocol, the original code doesn't support the bond scenario, we modifiy the code by select each flow's Src ToR and Dst ToR following a round-robin policy.
 * `conweave-voq.h/cc`: ConWeave in-network reordering buffer.
 * `settings.h/cc`: Global variables for logging and debugging.
 * `rdma-hw.h/cc`: RDMA-enable NIC behavior model.
