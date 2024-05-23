@@ -1,8 +1,9 @@
 # NS-3 Simulator for RDMA Network Load Balancing
 
 This is an NS-3 simulator for "Congestion Aware Load Balancing For RDMA with Vector Protocol". We add CAVER's components to  [ConWeave(SIGCOMM'2023)'s NS-3 simulator](https://github.com/conweave-project/conweave-ns3) to simulate RDMA load balancing performance with various algorithms.
-
+Besides the figure of result shown in the poster, we run other experiment and the result can be shown with script  `all-to-all_visual.ipynb`
 We describe how to run this repository on docker.
+
 
 
 ## Run with Docker
