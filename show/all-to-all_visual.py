@@ -70,7 +70,7 @@ def get_steps_from_raw(id, step=5):
 
     result = {"avg": [], "p99": [], "size": []}
     for item in res:
-        # if item[1] / (10 ** 3) <= 400:
+        if item[1] / (10 ** 3) <= 400:
             result["avg"].append(item[2])
             result["p99"].append(item[5])
             result["size"].append(item[1] / (10 ** 3))
@@ -122,9 +122,9 @@ def get_bandwidth_info(id, type):
     return time_list, total_list
 
 #exchange this for the id of the simulation you want to plot
-fecmp_id = 891307306
-conweave_id = 745578601
-CAVER_id = 414623077
+fecmp_id = 497547479
+conweave_id = 907715927
+CAVER_id = 545564951
 
 with PdfPages('plot.pdf') as pdf:
     fig = plt.figure(figsize=(6, 4))
@@ -164,11 +164,11 @@ with PdfPages('plot.pdf') as pdf:
             labelspacing=0.4, columnspacing=0.8)
 
     ax.set_xscale('log')
-    # log_ticks = np.log10([1, 10, 10 ** 2])
-    log_ticks = np.log10([1, 10, 10 ** 2, 10 ** 3, 2 * (10 ** 3)]) 
+    log_ticks = np.log10([1, 10, 10 ** 2])
+    # log_ticks = np.log10([1, 10, 10 ** 2, 10 ** 3, 2 * (10 ** 3)]) 
     ax.set_xticks(10 ** log_ticks)
-    # ax.set_xticklabels([r"$1$", r"$10$", r"$100$"])
-    ax.set_xticklabels([r"$1$", r"$10$", r"$100$", r"$1000$", r"$2000$"])
+    ax.set_xticklabels([r"$1$", r"$10$", r"$100$"])
+    # ax.set_xticklabels([r"$1$", r"$10$", r"$100$", r"$1000$", r"$2000$"])
 
     ax.grid(True, which='major')
 
