@@ -1,5 +1,5 @@
 # NS-3 Simulator for CAVER (A LB algorithm for RDMA)
-## Let's hunt less-congestion paths together for better RDMA LB!
+## Let's hunt less-congested paths together for better RDMA LB!
 
 This is an NS-3 simulator for "CAVER: Enhancing RDMA Load Balancing by Hunting Less-Congested Paths". We add CAVER's components to  [ConWeave(SIGCOMM'2023)'s NS-3 simulator](https://github.com/conweave-project/conweave-ns3) to simulate RDMA load balancing performance with various algorithms.
 
