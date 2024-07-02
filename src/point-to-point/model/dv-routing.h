@@ -77,6 +77,8 @@ class DVAckTag : public Tag{
         uint8_t GetLength(void) const;
         void SetLastSwitchId(uint32_t last_switch_id);
         uint32_t GetLastSwitchId(void) const;
+        uint32_t GetHostId(void) const;
+        void SetHostId(uint32_t host_id);
         virtual TypeId GetInstanceTypeId(void) const;
         virtual uint32_t GetSerializedSize(void) const;
         virtual void Serialize(TagBuffer i) const;
@@ -87,6 +89,7 @@ class DVAckTag : public Tag{
         uint32_t m_ce;  // hopCount to get outPort
         uint8_t m_length;
         uint32_t m_last_switch_id;
+        uint32_t m_host_id;
 };
 
 class DVRouting : public Object {
@@ -140,7 +143,6 @@ class DVRouting : public Object {
     EventId m_agingEvent;
     void DreEvent();
     void AgingEvent();
-
     // topological info (should be initialized in the beginning)
     std::map<uint32_t, uint64_t> m_outPort2BitRateMap;       
     std::map<uint32_t, std::map<uint32_t, DVInfo> > m_DVTable;  // (node ip, port)-> DVInfo
@@ -175,6 +177,9 @@ class DVRouting : public Object {
         // local
         std::map<uint32_t, uint32_t> m_DreMap;        // outPort -> DRE (at SrcToR)
         std::map<uint64_t, DV_Flowlet*> m_flowletTable;  // QpKey -> Flowlet (at SrcToR)
+
+        uint32_t host_round_index;
+        uint32_t ToR_host_num;
 
 
 };
