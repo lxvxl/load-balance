@@ -296,7 +296,7 @@ void SwitchNode::SendToDevContinue(Ptr<Packet> p, CustomHeader &ch) {
             m_mmu->m_dvRouting.UpdateLocalDre(p, ch, idx);
             if (m_mmu->m_dvRouting.DreTable_log){
                 if (m_isToR)
-                    printf("Dre Table: Dst switch %d\n", m_mmu->m_dvRouting.m_switch_id);
+                    printf("Dre Table: ToR switch %d\n", m_mmu->m_dvRouting.m_switch_id);
                 else
                     printf("Dre Table: Mid switch %d\n", m_mmu->m_dvRouting.m_switch_id);
                 for (auto it = m_mmu->m_dvRouting.m_DreMap.begin(); it != m_mmu->m_dvRouting.m_DreMap.end(); ++it) {
@@ -529,7 +529,21 @@ void SwitchNode::AddDVTableEntry(Ipv4Address &dstAddr, uint32_t intf_idx, Time n
     m_mmu->m_dvRouting.m_DVTable[dip][intf_idx] = dvInfo;
     
 }
-
+// *******************************Add begin**********************//
+void SwitchNode::AddPathCETableEntry(Ipv4Address &dstAddr, Time now){
+    std::cout << dstAddr;
+    uint32_t dip = dstAddr.Get();
+    auto dstIter = m_mmu->m_dvRouting.PathCE_Table.find(dip);
+    if (dstIter == m_mmu->m_dvRouting.PathCE_Table.end()) {
+        // 如果不存在，则创建一个新的条目
+        DVInfo dvInfo;
+        dvInfo._ce = 0;
+        dvInfo._updateTime = now;
+        dvInfo._valid = false;
+        m_mmu->m_dvRouting.PathCE_Table[dip] = dvInfo;
+    }
+}
+// *******************************Add end**********************//
 void SwitchNode::ClearTable() { m_rtTable.clear(); }
 
 uint64_t SwitchNode::GetTxBytesOutDev(uint32_t outdev) {
