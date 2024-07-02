@@ -92,6 +92,8 @@ namespace ns3 {
     void DVAckTag::SetLastSwitchId(uint32_t last_switch_id) { m_last_switch_id = last_switch_id; }
     uint32_t DVAckTag::GetLastSwitchId(void) const { return m_last_switch_id; }
     TypeId DVAckTag::GetInstanceTypeId(void) const { return GetTypeId(); }
+    uint32_t DVAckTag::GetHostId(void) const {return m_host_id;}
+    void DVAckTag::SetHostId(uint32_t host_id) {m_host_id = host_id; }
     uint32_t DVAckTag::GetSerializedSize(void) const {
         return sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint8_t);
     }
@@ -100,18 +102,21 @@ namespace ns3 {
         i.WriteU32(m_ce);
         i.WriteU8(m_length);
         i.WriteU32(m_last_switch_id);
+        i.WriteU32(m_host_id);
     }
     void DVAckTag::Deserialize(TagBuffer i) {
         m_pathId = i.ReadU32();
         m_ce = i.ReadU32();
         m_length = i.ReadU8();
         m_last_switch_id = i.ReadU32();
+        m_host_id = i.ReadU32();
     }
     void DVAckTag::Print(std::ostream& os) const {
         os << "m_pathId=" << m_pathId;
         os << ", m_CE=" << m_ce;
         os << ", m_length=" << m_length;
         os << ", m_last_switch_id=" << m_last_switch_id;
+        os << ", m_host_id=" << m_host_id;
     }
 
 
@@ -173,6 +178,10 @@ namespace ns3 {
     void DVRouting::SetSwitchInfo(bool isToR, uint32_t switch_id) {
         m_isToR = isToR;
         m_switch_id = switch_id;
+        if (m_isToR){
+            ToR_host_num = Settings::TorSwitch_nodelist[m_switch_id].size();
+            host_round_index = 0;
+        }
     }
 
     void DVRouting::SetLinkCapacity(uint32_t outPort, uint64_t bitRate) {
@@ -470,9 +479,11 @@ namespace ns3 {
                 if (!found)// sender-side
                 {
                     // *******************************Add begin**********************//
-                    uint32_t sip = ch.sip;
+                    // uint32_t sip = ch.sip;
                     // TODO: TOR这里采用轮询
-                    uint32_t sid = Settings::hostIp2IdMap[ch.sip];
+                    uint32_t choose_host_ip = Settings::TorSwitch_nodelist[m_switch_id][host_round_index];
+                    uint32_t sid = Settings::hostIp2IdMap[choose_host_ip];
+                    host_round_index = (host_round_index + 1) % ToR_host_num;
                     uint32_t port = id2Port[sid];
                     uint32_t ce = m_DreMap[port];
                     uint32_t localce = QuantizingX(port, ce);
@@ -480,13 +491,14 @@ namespace ns3 {
                     ackTag.SetLength(0);
                     ackTag.SetLastSwitchId(m_switch_id);
                     ackTag.SetPathId(0);
+                    ackTag.SetHostId(sid);
                     p->AddPacketTag(ackTag);
                     if (ACK_log){
                         uint32_t ack_src_id = Settings::hostIp2IdMap[ch.sip];
                         uint32_t ack_dst_id = Settings::hostIp2IdMap[ch.dip];
                         uint32_t flowid = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.dip], Settings::hostIp2IdMap[ch.sip], ch.udp.dport, ch.udp.sport)];
                         printf("ACK info: flow id: %d, Ack from node %d to %d, current: Src switch %d \n", flowid, ack_src_id, ack_dst_id, m_switch_id);
-                        printf("send ack packet info: localCE: %d, port:%d, to node:%d\n",localce, id2Port[ack_src_id], ack_src_id);
+                        printf("send ack packet info: host id: %d, localCE: %d, port:%d, to node:%d\n",sid, localce, id2Port[ack_src_id], ack_src_id);
                         //显示一下本地的Dre表
                         if (DreTable_log){
                             printf("Dre Table: Src switch %d\n", m_switch_id);
@@ -551,13 +563,15 @@ namespace ns3 {
                 uint32_t ce = m_DreMap[inPort];
                 uint32_t localCE = QuantizingX(inPort, ce);
                 uint32_t totalCE = std::max(localCE, remoteCE);
+                uint32_t host_id = ackTag.GetHostId();
+                uint32_t host_ip = Settings::hostId2IpMap[host_id];
                 if (ACK_log){
                     //更新前的表项，以及待判断的中间数据：
                     uint32_t ack_src_id = Settings::hostIp2IdMap[ch.sip];
                     uint32_t ack_dst_id = Settings::hostIp2IdMap[ch.dip];
                     uint32_t flowid = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.dip], Settings::hostIp2IdMap[ch.sip], ch.udp.dport, ch.udp.sport)];
                     printf("ACK info: flow id: %d, Ack from node %d to %d, current: Dst switch %d \n", flowid, ack_src_id, ack_dst_id, m_switch_id);
-                    printf("receive ack packet info: from switch: %d, inPort %d, packet CE: %d, \n", last_swtich, inPort, ackTag.GetCE());
+                    printf("receive ack packet info: from switch: %d, host_id %d, inPort %d, packet CE: %d, \n",last_swtich,  host_id, inPort, ackTag.GetCE());
                     std::cout << "receive ack path id: " << ackTag.GetPathId() << std::endl;
                     std::cout << "receive ack packet path: ";
                     std::vector<uint8_t> show_path;
@@ -573,28 +587,28 @@ namespace ns3 {
                     std::cout << "PathCE table: " << std::endl;
                     std::cout << "_valid: ";
                     // uint32_t outPort = (uint32_t) PathCE_Table[ch.sip]._path[0];
-                    std::cout  << PathCE_Table[ch.sip]._valid << " _ce: " << PathCE_Table[ch.sip]._ce << " _path: "<<std::endl;
-                    for (int i = 0; i < PathCE_Table[ch.sip]._path.size(); i++) {
-                        std::cout << static_cast<int>(PathCE_Table[ch.sip]._path[i]) << "->";
+                    std::cout  << PathCE_Table[host_ip]._valid << " _ce: " << PathCE_Table[host_ip]._ce << " _path: "<<std::endl;
+                    for (int i = 0; i < PathCE_Table[host_ip]._path.size(); i++) {
+                        std::cout << static_cast<int>(PathCE_Table[host_ip]._path[i]) << "->";
                     }
                     std::cout << std::endl;
                 }
-                if(PathCE_Table[ch.sip]._valid == false or PathCE_Table[ch.sip]._ce >= totalCE or PathCE_Table[ch.sip]._path[0] == inPort){
-                    PathCE_Table[ch.sip]._valid = true;
-                    PathCE_Table[ch.sip]._updateTime= now;
-                    PathCE_Table[ch.sip]._ce = remoteCE;
+                if(PathCE_Table[host_ip]._valid == false or PathCE_Table[host_ip]._ce >= totalCE or PathCE_Table[host_ip]._path[0] == inPort){
+                    PathCE_Table[host_ip]._valid = true;
+                    PathCE_Table[host_ip]._updateTime= now;
+                    PathCE_Table[host_ip]._ce = remoteCE;
                     std::vector<uint8_t> path;
                     path.push_back((uint8_t(inPort)));
                     std::vector<uint8_t> fullpath = uint32_to_uint8(ackTag.GetPathId());
                     for (int i = 0; i < ackTag.GetLength(); i++) {
                     path.push_back(fullpath [i]);
                     }  
-                    PathCE_Table[ch.sip]._path = path;
+                    PathCE_Table[host_ip]._path = path;
                     if(ACK_log){
                         printf("ACK info: update PathCE table: "); 
                         printf("ACK info: update PathCE table, after update ce: %d PathCE_Table[ch.sip]._ce, path: ", PathCE_Table[ch.sip]._ce);
-                        for (int i = 0; i < PathCE_Table[ch.sip]._path.size(); i++) {
-                            std::cout << static_cast<int>(PathCE_Table[ch.sip]._path[i]) << "->";
+                        for (int i = 0; i < PathCE_Table[host_ip]._path.size(); i++) {
+                            std::cout << static_cast<int>(PathCE_Table[host_ip]._path[i]) << "->";
                         }
                         std::cout << std::endl;
                     }
@@ -679,13 +693,15 @@ namespace ns3 {
             uint32_t ce = m_DreMap[inPort];
             uint32_t localCE = QuantizingX(inPort, ce);
             uint32_t totalCE = std::max(localCE, remoteCE);
+            uint32_t host_id = ackTag.GetHostId();
+            uint32_t host_ip = Settings::hostId2IpMap[host_id];
             if (ACK_log){
                 //更新前的表项，以及待判断的中间数据：
                 uint32_t ack_src_id = Settings::hostIp2IdMap[ch.sip];
                 uint32_t ack_dst_id = Settings::hostIp2IdMap[ch.dip];
                 uint32_t flowid = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.dip], Settings::hostIp2IdMap[ch.sip], ch.udp.dport, ch.udp.sport)];
                 printf("ACK info: flow id: %d, Ack from node %d to %d, current: Mid switch %d \n", flowid, ack_src_id, ack_dst_id, m_switch_id);
-                printf("receive ack packet info: from switch: %d, inPort %d, packet CE: %d, \n", last_swtich, inPort, ackTag.GetCE());
+                printf("receive ack packet info: from switch: %d, host_id %d, inPort %d, packet CE: %d, \n", last_swtich, host_id, inPort, ackTag.GetCE());
                 std::cout << "receive ack path id: " << ackTag.GetPathId() << std::endl;
                 std::cout << "receive ack packet path: ";
                 std::vector<uint8_t> show_path;
@@ -701,34 +717,35 @@ namespace ns3 {
                 std::cout << "PathCE table: " << std::endl;
                 std::cout << "_valid: " ; 
                 // uint32_t outPort = (uint32_t) PathCE_Table[ch.sip]._path[0];
-                std::cout  << PathCE_Table[ch.sip]._valid << " _ce: " << PathCE_Table[ch.sip]._ce << " _path: ";
-                for (int i = 0; i < PathCE_Table[ch.sip]._path.size(); i++) {
-                    std::cout << static_cast<int>(PathCE_Table[ch.sip]._path[i]) << "->";
+                std::cout  << PathCE_Table[host_ip]._valid << " _ce: " << PathCE_Table[host_ip]._ce << " _path: ";
+                for (int i = 0; i < PathCE_Table[host_ip]._path.size(); i++) {
+                    std::cout << static_cast<int>(PathCE_Table[host_ip]._path[i]) << "->";
                 }
                 std::cout << std::endl;
             }
-            if(PathCE_Table[ch.sip]._valid == false or PathCE_Table[ch.sip]._ce >= totalCE or PathCE_Table[ch.sip]._path[0] == inPort){
-                PathCE_Table[ch.sip]._valid = true;
-                PathCE_Table[ch.sip]._updateTime= now;
-                PathCE_Table[ch.sip]._ce = remoteCE;
+            if(PathCE_Table[host_ip]._valid == false or PathCE_Table[host_ip]._ce >= totalCE or PathCE_Table[host_ip]._path[0] == inPort){
+                PathCE_Table[host_ip]._valid = true;
+                PathCE_Table[host_ip]._updateTime= now;
+                PathCE_Table[host_ip]._ce = remoteCE;
                 std::vector<uint8_t> path;
                 path.push_back((uint8_t(inPort)));
                 std::vector<uint8_t> fullpath = uint32_to_uint8(ackTag.GetPathId());
                 for (int i = 0; i < ackTag.GetLength(); i++) {
                 path.push_back(fullpath [i]);
                 }  
-                PathCE_Table[ch.sip]._path = path;
+                PathCE_Table[host_ip]._path = path;
                 if(ACK_log){
-                    printf("ACK info: update PathCE table, after update ce: %d, path: ", PathCE_Table[ch.sip]._ce);
-                    for (int i = 0; i < PathCE_Table[ch.sip]._path.size(); i++) {
-                        std::cout << static_cast<int>(PathCE_Table[ch.sip]._path[i]) << "->";
+                    printf("ACK info: update PathCE table, after update ce: %d, path: ", PathCE_Table[host_ip]._ce);
+                    for (int i = 0; i < PathCE_Table[host_ip]._path.size(); i++) {
+                        std::cout << static_cast<int>(PathCE_Table[host_ip]._path[i]) << "->";
                     }
                     std::cout << std::endl;
                 }
             }
-            uint32_t newPathid = Vector2PathId(PathCE_Table[ch.sip]._path);
+            uint32_t newPathid = Vector2PathId(PathCE_Table[host_ip]._path);
             ackTag.SetPathId(newPathid);
-            ackTag.SetCE(PathCE_Table[ch.sip]._ce);
+            ackTag.SetCE(PathCE_Table[host_ip]._ce);
+            ackTag.SetHostId(host_id);
             ackTag.SetLastSwitchId(m_switch_id);
             //更新包的length
             ackTag.SetLength(ackTag.GetLength() + 1);
