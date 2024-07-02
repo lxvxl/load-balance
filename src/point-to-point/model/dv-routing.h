@@ -112,6 +112,9 @@ class DVRouting : public Object {
     RouteChoice GetBestPath(uint32_t dip, CustomHeader ch); 
     CEChoice GetKnownBestPath(uint32_t dip);
     uint32_t mergePortAndVector(uint8_t port, const std::vector<uint8_t> vec);
+    // *******************************Add begin**********************//
+    uint32_t Vector2PathId(std::vector<uint8_t> vec);
+    // *******************************Add end**********************//
     std::vector<uint8_t> uint32_to_uint8(uint32_t number);
 
     std::map<uint32_t, uint32_t> id2Port;//维护一个交换机的邻居id到端口的id的映射
@@ -141,6 +144,9 @@ class DVRouting : public Object {
     // topological info (should be initialized in the beginning)
     std::map<uint32_t, uint64_t> m_outPort2BitRateMap;       
     std::map<uint32_t, std::map<uint32_t, DVInfo> > m_DVTable;  // (node ip, port)-> DVInfo
+    // *******************************Add begin**********************//
+    std::map<uint32_t, DVInfo> PathCE_Table;
+    // *******************************Add end**********************//
 
     //log
     bool DreTable_log = true;
@@ -162,6 +168,7 @@ class DVRouting : public Object {
         Time m_dreTime;          // dre alogrithm (e.g., 200us)
         Time m_agingTime;        // dre algorithm (e.g., 10ms)
         Time m_flowletTimeout;   // flowlet timeout (e.g., 1ms)
+        
         uint32_t m_quantizeBit;  // quantizing (2**X) param (e.g., X=3)
         double m_alpha;          // dre algorithm (e.g., 0.2)
 
