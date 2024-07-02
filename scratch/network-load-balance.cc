@@ -73,7 +73,13 @@ double conga_alpha = 0.2;
 Time dv_flowletTimeout = MilliSeconds(2); // 2ms
 Time dv_dreTime = MicroSeconds(50);
 Time dv_agingTime = MicroSeconds(500);
-uint32_t dv_quantizeBit = 3;
+
+// *******************************Delete begin**********************//
+// uint32_t dv_quantizeBit = 3;
+// *******************************Delete end**********************//
+// *******************************Add begin**********************//
+uint32_t dv_quantizeBit = 8;
+// *******************************Add end**********************//
 double dv_alpha = 0.2;
 
 // Letflow params
@@ -225,6 +231,7 @@ uint32_t flow_num;
 //my log
 bool SrcDstToR_log = true;
 bool Path_id_log = true;
+bool Path_Table_log = true;
 /**
  * Read flow input from file "flowf"
  */
@@ -351,7 +358,7 @@ void ScheduleFlowInputs(FILE *infile) {
             apps0s.Start(Seconds(Time(0)));
             apps0s.Stop(Seconds(100.0));
         }  // end of logging input streams
-
+ 
         if (pairRtt.find(n.Get(src)) == pairRtt.end() ||
             pairRtt[n.Get(src)].find(n.Get(dst)) == pairRtt[n.Get(src)].end()) {
             std::cerr << "pairRtt src: " << src << " -> dst: " << dst
@@ -959,6 +966,23 @@ void SetDVTables(){
         }
     }
 }
+// *******************************Add begin**********************//
+void SetPathCETables(){
+    Time now = Simulator::Now();
+    for (auto i = nextHop.begin(); i != nextHop.end(); i++) {
+        Ptr<Node> node = i->first;
+        auto &table = i->second;
+        for (auto j = table.begin(); j != table.end(); j++) {
+            // The destination node.
+            Ptr<Node> dst = j->first;
+            // The IP address of the dst.
+            Ipv4Address dstAddr = dst->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+            if (node->GetNodeType() == 1)
+                DynamicCast<SwitchNode>(node)->AddPathCETableEntry(dstAddr, now);
+        }
+    }
+}
+// *******************************Add end**********************//
 /**
  * @brief take down the link between a and b, and redo the routing
  */
@@ -1783,7 +1807,12 @@ int main(int argc, char *argv[]) {
     // init DV tables
     if (lb_mode == 10) 
     {
-        SetDVTables();
+        // *******************************Delete end**********************//
+        // SetDVTables();
+        // *******************************Delete end**********************//
+        // *******************************Add begin**********************//
+        SetPathCETables();
+        // *******************************Add end**********************//
         //更新每个交换机的接口与邻居id的关系
         for (const auto& outerPair : nbr2if) {
             ns3::Ptr<ns3::Node> SrcNode = outerPair.first;
@@ -1992,6 +2021,26 @@ int main(int argc, char *argv[]) {
                             }    
                         }
                     }
+                    std::cout << "Path Table info: << sw: " <<swSrc->GetId() <<"\n";
+                    if (Path_Table_log){
+                        for (const auto& [key, valueSet] : swSrc->m_mmu->m_conweaveRouting.m_ConWeaveRoutingTable) {
+                            std::cout << "Path Table info: << sw: " <<swSrc->GetId() <<",Dst ToR: " << key << ",Path num "  << valueSet.size()<< "\n Path: " ;
+                            for (const auto& value : valueSet) {
+                                for (int temp_c = 0; temp_c < 4; temp_c++) {
+                                    std::cout << static_cast<int>(((uint8_t *)&value)[temp_c]) << " ";
+                                }
+                                std::cout << std::endl;
+                            }
+                        }
+                        for (const auto& [key, value] : swSrc->m_mmu->m_conweaveRouting.m_rxToRId2BaseRTT) {
+                            std::cout << "Path Table info: << sw: " <<swSrc->GetId() <<",Dst ToR: " << key <<  "\n Path length: " ;
+                            std::cout << value << std::endl;
+                            std::cout << std::endl;
+                        }
+
+
+                    }
+
                 }
             }
         }
