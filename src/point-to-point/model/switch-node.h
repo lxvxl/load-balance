@@ -90,6 +90,7 @@ class SwitchNode : public Node {
     void AddTableEntry(Ipv4Address &dstAddr, uint32_t intf_idx);
     void AddDVTableEntry(Ipv4Address &dstAddr, uint32_t intf_idx, Time now);
     // *******************************Add begin**********************//
+    void AddPathCE_port_TableEntry(Ipv4Address &dstAddr, uint32_t intf_idx, Time now);
     void AddPathCETableEntry(Ipv4Address &dstAddr, Time now);
     // *******************************Add end**********************//
     void ClearTable();
