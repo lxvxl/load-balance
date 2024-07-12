@@ -543,6 +543,19 @@ void SwitchNode::AddPathCETableEntry(Ipv4Address &dstAddr, Time now){
         m_mmu->m_dvRouting.PathCE_Table[dip] = dvInfo;
     }
 }
+void SwitchNode::AddPathCE_port_TableEntry(Ipv4Address &dstAddr, uint32_t intf_idx, Time now){
+    uint32_t dip = dstAddr.Get();
+    auto dstIter = m_mmu->m_dvRouting.PathCE_port_Table.find(dip);
+    if (dstIter == m_mmu->m_dvRouting.PathCE_port_Table.end()) {
+        // 如果不存在，则创建一个新的条目
+        m_mmu->m_dvRouting.PathCE_port_Table[dip] = std::map<uint32_t, DVInfo>();
+    }
+    DVInfo dvInfo;
+    dvInfo._ce = 0;
+    dvInfo._updateTime = now;
+    dvInfo._valid = false;
+    m_mmu->m_dvRouting.PathCE_port_Table[dip][intf_idx] = dvInfo;
+}
 // *******************************Add end**********************//
 void SwitchNode::ClearTable() { m_rtTable.clear(); }
 
