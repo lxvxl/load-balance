@@ -116,6 +116,7 @@ class DVRouting : public Object {
     CEChoice GetKnownBestPath(uint32_t dip);
     uint32_t mergePortAndVector(uint8_t port, const std::vector<uint8_t> vec);
     // *******************************Add begin**********************//
+    RouteChoice GetBestPath_PathCE_port_table(uint32_t dip, CustomHeader ch);
     uint32_t Vector2PathId(std::vector<uint8_t> vec);
     // *******************************Add end**********************//
     std::vector<uint8_t> uint32_to_uint8(uint32_t number);
@@ -148,15 +149,20 @@ class DVRouting : public Object {
     std::map<uint32_t, std::map<uint32_t, DVInfo> > m_DVTable;  // (node ip, port)-> DVInfo
     // *******************************Add begin**********************//
     std::map<uint32_t, DVInfo> PathCE_Table;
+    std::map<uint32_t, std::map<uint32_t, DVInfo>> PathCE_port_Table;
     // *******************************Add end**********************//
 
     //log
-    bool DreTable_log = true;
+    bool DreTable_log = false;
     bool ACK_log = true;
     bool Route_log = true;
-    bool Nodepass_log = true;
-    bool Error_log = true;
-    bool Dre_decrease_log = true;
+    bool Nodepass_log = false;
+    bool Error_log = false;
+    bool Dre_decrease_log = false;
+    //method
+    bool ToR_Rouding = true;
+    bool multi_PathSet = true;
+
 
     private:
         SwitchSendCallback m_switchSendCallback;  // bound to SwitchNode::SwitchSend (for Request/UDP)
