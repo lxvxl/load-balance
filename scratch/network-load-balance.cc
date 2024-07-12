@@ -982,6 +982,28 @@ void SetPathCETables(){
         }
     }
 }
+void SetPathCE_port_Tables(){
+    Time now = Simulator::Now();
+    for (auto i = nextHop.begin(); i != nextHop.end(); i++) {
+        Ptr<Node> node = i->first;
+        auto &table = i->second;
+        for (auto j = table.begin(); j != table.end(); j++) {
+            // The destination node.
+            Ptr<Node> dst = j->first;
+           // The IP address of the dst.
+            Ipv4Address dstAddr = dst->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+            // The next hops towards the dst.
+            vector<Ptr<Node>> nexts = j->second;
+            for (int k = 0; k < (int)nexts.size(); k++) {
+                Ptr<Node> next = nexts[k];
+                uint32_t interface = nbr2if[node][next].idx;
+                if (node->GetNodeType() == 1)
+                    DynamicCast<SwitchNode>(node)->AddPathCE_port_TableEntry(dstAddr, interface, now);
+            }
+        }
+    }
+
+}
 // *******************************Add end**********************//
 /**
  * @brief take down the link between a and b, and redo the routing
@@ -1812,6 +1834,7 @@ int main(int argc, char *argv[]) {
         // *******************************Delete end**********************//
         // *******************************Add begin**********************//
         SetPathCETables();
+        SetPathCE_port_Tables();
         // *******************************Add end**********************//
         //更新每个交换机的接口与邻居id的关系
         for (const auto& outerPair : nbr2if) {
