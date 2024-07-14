@@ -536,10 +536,11 @@ void SwitchNode::AddPathCETableEntry(Ipv4Address &dstAddr, Time now){
     auto dstIter = m_mmu->m_dvRouting.PathCE_Table.find(dip);
     if (dstIter == m_mmu->m_dvRouting.PathCE_Table.end()) {
         // 如果不存在，则创建一个新的条目
-        DVInfo dvInfo;
+        singleDVInfo dvInfo;
         dvInfo._ce = 0;
         dvInfo._updateTime = now;
         dvInfo._valid = false;
+        dvInfo._inPort = 0;
         m_mmu->m_dvRouting.PathCE_Table[dip] = dvInfo;
     }
 }
