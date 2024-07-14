@@ -598,18 +598,21 @@ namespace ns3 {
                     else {
                         if(currentCE >= totalCE or PathCE_Table[host_ip]._path[0] == inPort){
                             update = true;
-                            PathCE_Table[host_ip]._valid = true;
-                            PathCE_Table[host_ip]._updateTime= now;
-                            PathCE_Table[host_ip]._ce = remoteCE;
-                            std::vector<uint8_t> path;
-                            path.push_back((uint8_t(inPort)));
-                            std::vector<uint8_t> fullpath = uint32_to_uint8(ackTag.GetPathId());
-                            for (int i = 0; i < ackTag.GetLength(); i++) {
-                                path.push_back(fullpath [i]);
-                            }  
-                            PathCE_Table[host_ip]._path = path;
                         }
                     }
+                    if(update){
+                        PathCE_Table[host_ip]._valid = true;
+                        PathCE_Table[host_ip]._updateTime= now;
+                        PathCE_Table[host_ip]._ce = remoteCE;
+                        std::vector<uint8_t> path;
+                        path.push_back((uint8_t(inPort)));
+                        std::vector<uint8_t> fullpath = uint32_to_uint8(ackTag.GetPathId());
+                        for (int i = 0; i < ackTag.GetLength(); i++) {
+                            path.push_back(fullpath [i]);
+                        }  
+                        PathCE_Table[host_ip]._path = path;
+                    }
+
                 }
                 p->RemovePacketTag(ackTag);
                 DoSwitchSendToDev(p, ch);
