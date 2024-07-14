@@ -807,7 +807,7 @@ namespace ns3 {
                     PathCE_Table[host_ip]._updateTime= now;
                     PathCE_Table[host_ip]._ce = remoteCE;
                     PathCE_Table[host_ip]._inPort = inPort;
-                    currentCE = remoteCE;
+                    currentCE = totalCE;
                     std::vector<uint8_t> path;
                     path.push_back((uint8_t(inPort)));
                     std::vector<uint8_t> fullpath = uint32_to_uint8(ackTag.GetPathId());
