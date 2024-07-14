@@ -30,6 +30,13 @@ struct DVInfo {
     Time _updateTime;
     bool _valid;
 };
+struct singleDVInfo{
+    uint32_t _ce;
+    std::vector<uint8_t> _path;
+    Time _updateTime;
+    bool _valid;
+    uint32_t _inPort;
+};
 struct RouteChoice{
     bool SrcRoute;
     uint32_t outPort;
@@ -148,20 +155,20 @@ class DVRouting : public Object {
     std::map<uint32_t, uint64_t> m_outPort2BitRateMap;       
     std::map<uint32_t, std::map<uint32_t, DVInfo> > m_DVTable;  // (node ip, port)-> DVInfo
     // *******************************Add begin**********************//
-    std::map<uint32_t, DVInfo> PathCE_Table;
+    std::map<uint32_t, singleDVInfo> PathCE_Table;
     std::map<uint32_t, std::map<uint32_t, DVInfo>> PathCE_port_Table;
     // *******************************Add end**********************//
 
     //log
     bool DreTable_log = false;
-    bool ACK_log = true;
+    bool ACK_log = false;
     bool Route_log = true;
     bool Nodepass_log = false;
     bool Error_log = false;
     bool Dre_decrease_log = false;
     //method
-    bool ToR_Rouding = true;
-    bool multi_PathSet = true;
+    bool ToR_Rouding = false;
+    bool multi_PathSet = false;
 
 
     private:
