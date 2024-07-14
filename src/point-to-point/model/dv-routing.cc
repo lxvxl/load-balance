@@ -589,17 +589,16 @@ namespace ns3 {
                 }
                 else{
                     uint32_t currentCE = 0;
-                    if (PathCE_Table[host_ip]._valid)
-                        currentCE = std::max(localCE, PathCE_Table[host_ip]._ce);
                     bool update = false;
                     if (PathCE_Table[host_ip]._valid == false){
                         update = true;
                     }
                     else {
-                        if (PathCE_Table[host_ip]._valid){
                             uint32_t table_portCE = QuantizingX(PathCE_Table[host_ip]._inPort, m_DreMap[PathCE_Table[host_ip]._inPort]);
                             currentCE = std::max(table_portCE, PathCE_Table[host_ip]._ce);
-                        }
+                            if(currentCE >= totalCE or PathCE_Table[host_ip]._path[0] == inPort){
+                                update = true;
+                            }
                     }
                     if (ACK_log){
                         std::cout << "before update PathCE table: " << std::endl;
