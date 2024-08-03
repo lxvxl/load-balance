@@ -90,6 +90,7 @@ KMIN_MAP {kmin_map}
 PMAX_MAP {pmax_map}
 LOAD {load}
 RANDOM_SEED 1
+TIME {time}
 """
 
 
@@ -107,6 +108,7 @@ lb_modes = {
     "conga": 3,
     "letflow": 6,
     "conweave": 9,
+    "hula": 12
 }
 
 topo2bdp = {
@@ -369,7 +371,7 @@ def main():
                                         ai=ai, hai=hai, dctcp_ai=dctcp_ai,
                                         has_win=has_win, var_win=var_win,
                                         fast_react=fast_react, mi=mi, int_multi=int_multi, ewma_gain=ewma_gain,
-                                        kmax_map=kmax_map, kmin_map=kmin_map, pmax_map=pmax_map)
+                                        kmax_map=kmax_map, kmin_map=kmin_map, pmax_map=pmax_map, time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     else:
         print("unknown cc:{}".format(args.cc))
 

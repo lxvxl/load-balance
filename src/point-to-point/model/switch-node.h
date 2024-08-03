@@ -32,6 +32,7 @@ class SwitchNode : public Node {
     int GetOutDev(Ptr<Packet>, CustomHeader &ch);
     void SendToDev(Ptr<Packet> p, CustomHeader &ch);
     void SendToDevContinue(Ptr<Packet> p, CustomHeader &ch);
+    void SendHulaProbe(uint32_t dev, uint32_t torID, uint8_t minUtil);
     static uint32_t EcmpHash(const uint8_t *key, size_t len, uint32_t seed);
     void CheckAndSendPfc(uint32_t inDev, uint32_t qIndex);
     void CheckAndSendResume(uint32_t inDev, uint32_t qIndex);
@@ -56,6 +57,9 @@ class SwitchNode : public Node {
     // ConWeave (lb_mode = 9)
     uint32_t DoLbConWeave(Ptr<const Packet> p, const CustomHeader &ch,
                            const std::vector<int> &nexthops);  // dummy
+    // Hula (lb_mode = 12)
+    uint32_t DoLbHula(Ptr<Packet> p, CustomHeader &ch, const std::vector<int> &nexthops);
+
 
    public:
     // Ptr<BroadcomNode> m_broadcom;

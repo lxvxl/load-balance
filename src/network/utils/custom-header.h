@@ -133,6 +133,10 @@ public:
 		  uint32_t qlen;
 		  uint8_t qIndex;
 	  } pfc;
+    struct {
+        uint32_t torID;
+        uint8_t minUtil;
+    } hula;
   };
 
   uint8_t GetIpv4EcnBits (void) const;

@@ -35,6 +35,7 @@
 #include "ns3/broadcom-node.h"
 #include "ns3/conga-routing.h"
 #include "ns3/conweave-voq.h"
+#include "ns3/hula-routing.h"
 #include "ns3/core-module.h"
 #include "ns3/error-model.h"
 #include "ns3/global-route-manager.h"
@@ -54,7 +55,7 @@ using namespace std;
 NS_LOG_COMPONENT_DEFINE("GENERIC_SIMULATION");
 
 /*------Load balancing parameters-----*/
-// mode for load balancer, 0: flow ECMP, 2: DRILL, 3: Conga, 6: Letflow, 9: ConWeave
+// mode for load balancer, 0: flow ECMP, 2: DRILL, 3: Conga, 6: Letflow, 9: ConWeave 12:Hula
 uint32_t lb_mode = 0;
 
 // Conga params (based on paper recommendation)
@@ -75,6 +76,14 @@ Time conweave_txExpiryTime = MicroSeconds(1000);          // waiting time for CL
 Time conweave_extraVOQFlushTime = MicroSeconds(32);       // extra for uncertainty
 Time conweave_defaultVOQWaitingTime = MicroSeconds(500);  // default flush timer if no history
 bool conweave_pathAwareRerouting = true;
+
+// Hula params
+Time hula_probeGenerationInterval = MicroSeconds(100);//探针的生成间隔
+Time hula_keepAliveThresh = MicroSeconds(500);        //探针老化时间
+Time hula_probeTransmitInterval = MicroSeconds(30);  //转发探针的时间窗口
+Time hula_flowletInterval = MicroSeconds(100);       //flowlet的区分间隔 (e.g., 100us)
+//计算链路利用率使用，至少是探针的生成间隔的两倍,这里暂时设置为三倍
+Time hula_tau = MicroSeconds(hula_probeGenerationInterval.GetMicroSeconds() * 3);      
 
 /*------------------------ simulation variables -----------------------------*/
 uint64_t one_hop_delay = 1000;  // nanoseconds
@@ -158,6 +167,7 @@ struct Interface {
 
     Interface() : idx(0), up(false) {}
 };
+// nbr2if[snode][dnode] -> Interface
 map<Ptr<Node>, map<Ptr<Node>, Interface>> nbr2if;
 // Mapping destination to next hop for each node: <node, <dest, <nexthop0, ...> > >
 map<Ptr<Node>, map<Ptr<Node>, vector<Ptr<Node>>>> nextHop;
@@ -215,6 +225,9 @@ void ReadFlowInput() {
 void ScheduleFlowInputs(FILE *infile) {
     NS_LOG_DEBUG("ScheduleFlowInputs at " << Simulator::Now());
     while (flow_input.idx < flow_num && Seconds(flow_input.start_time) == Simulator::Now()) {
+        if (flow_input.idx % 1000 == 0) {
+            std::cout<<flow_input.idx<<"条流已运行完毕"<<std::endl;
+        }
         uint32_t pg, src, dst, sport, dport, maxPacketCount, target_len;
         pg = flow_input.pg;
         src = flow_input.src;
@@ -461,6 +474,12 @@ void conweave_history_print() {
     }
 }
 
+
+void hula_history_print() {
+    std::cout << "\n------------Hula History---------------" << std::endl;
+    std::cout << "Number of flowlet's timeout:" << HulaRouting::nFlowletTimeout
+              << "\nHula's timeout: " << hula_flowletInterval << std::endl;    
+}
 /**
  * @brief When one RDMA is finished, so does (1) QP, (2) RxQP, (3) write it on file fct.txt.
  */
@@ -575,6 +594,9 @@ void stop_simulation_middle() {
         }
         if (lb_mode == 9) {  // CONWEAVE
             conweave_history_print();
+        }
+        if (lb_mode == 12) {
+            hula_history_print();
         }
         Simulator::Stop(NanoSeconds(1));  // finish soon, stop this schedule (NECESSARY!)
         return;
@@ -725,6 +747,8 @@ int main(int argc, char *argv[]) {
     uint32_t *workload_cdf = nullptr;
     clock_t begint, endt;
     begint = clock();
+
+//参数配置
 #ifndef PGO_TRAINING
     if (argc > 1)
 #else
@@ -1142,7 +1166,7 @@ int main(int argc, char *argv[]) {
     topof.open(topology_file.c_str());
     flowf.open(flow_file.c_str());
     uint32_t node_num, switch_num, link_num;
-    topof >> node_num >> switch_num >> link_num;
+    topof >> node_num >> switch_num >> link_num; //144 16 192
     flowf >> flow_num;
 
     /*-------Parameter of Settings-------*/
@@ -1154,10 +1178,11 @@ int main(int argc, char *argv[]) {
     // Settings::MTU = packet_payload_size + 48;  // for simplicity
     /*------------------------------------*/
 
+    //创建节点
     std::vector<uint32_t> node_type(node_num, 0);
     for (uint32_t i = 0; i < switch_num; i++) {
         uint32_t sid;
-        topof >> sid;
+        topof >> sid;//128-143
         node_type[sid] = 1;
     }
     for (uint32_t i = 0; i < node_num; i++) {
@@ -1195,7 +1220,7 @@ int main(int argc, char *argv[]) {
     Ptr<UniformRandomVariable> uv = CreateObject<UniformRandomVariable>();
     rem->SetRandomVariable(uv);
     uv->SetStream(50);
-    rem->SetAttribute("ErrorRate", DoubleValue(error_rate_per_link));
+    rem->SetAttribute("ErrorRate", DoubleValue(error_rate_per_link)); //error_rate_per_link = 0.0000
     rem->SetAttribute("ErrorUnit", StringValue("ERROR_UNIT_PACKET"));
 
     pfc_file = fopen(pfc_output_file.c_str(), "w");
@@ -1207,7 +1232,7 @@ int main(int argc, char *argv[]) {
         uint32_t src, dst;
         std::string data_rate, link_delay;
         double error_rate;
-        topof >> src >> dst >> data_rate >> link_delay >> error_rate;
+        topof >> src >> dst >> data_rate >> link_delay >> error_rate;//0 128 100Gbps 1000ns 0
 
         /** ASSUME: fixed one-hop delay across network */
         assert(std::to_string(one_hop_delay) + "ns" == link_delay);
@@ -1459,6 +1484,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "node_num=%d\n", node_num);
     for (uint32_t i = 0; i < node_num; i++) {
         if (n.Get(i)->GetNodeType() != 0) continue;
+        // 只考虑server
         for (uint32_t j = i + 1; j < node_num; j++) {
             if (n.Get(j)->GetNodeType() != 0) continue;
             uint64_t delay = pairDelay[n.Get(i)][n.Get(j)];
@@ -1497,7 +1523,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* config load balancer's switches using ToR-to-ToR routing */
-    if (lb_mode == 3 || lb_mode == 6 || lb_mode == 9) {  // Conga, Letflow, Conweave
+    if (lb_mode == 3 || lb_mode == 6 || lb_mode == 9 || lb_mode == 12) {  // Conga, Letflow, Conweave
         NS_LOG_INFO("Configuring Load Balancer's Switches");
         for (auto &pair : link_pairs) {
             Ptr<Node> probably_host = n.Get(pair.first);
@@ -1508,6 +1534,30 @@ int main(int argc, char *argv[]) {
                 Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(probably_switch);
                 uint32_t hostIP = serverAddress[pair.first].Get();
                 Settings::hostIp2SwitchId[hostIP] = sw->GetId();  // hostIP -> connected switch's ID
+            }
+        }
+
+        //配置hula
+        if (lb_mode == 12) {
+            for (auto &pair1 : nbr2if) {
+                if (pair1.first->GetNodeType() == 0) { //只考虑交换机
+                    continue;
+                }
+                Ptr<SwitchNode> snode = DynamicCast<SwitchNode>(pair1.first);
+                for (auto &pair2 : pair1.second) {
+                    Ptr<Node> dnode = pair2.first;
+                    Interface &itf = pair2.second;
+                    if (snode->m_isToR) {
+                        if (dnode->GetNodeType() == 1) {// 如果连接的是另一台交换机
+                            snode->m_mmu->m_hulaRouting.upLayerDevs.insert(itf.idx);
+                        } else {
+                            snode->m_mmu->m_hulaRouting.downLayerDevs.insert(itf.idx);
+                        }
+                    } else { //如果不是tor交换机
+                        snode->m_mmu->m_hulaRouting.downLayerDevs.insert(itf.idx);
+                    }
+                    snode->m_mmu->m_hulaRouting.SetLinkCapacity(itf.idx, itf.bw);
+                }
             }
         }
 
@@ -1523,7 +1573,7 @@ int main(int argc, char *argv[]) {
                 if (swSrc->m_isToR) {
                     // printf("--- ToR Switch %d\n", swSrcId);
 
-                    auto table1 = i->second;
+                    auto table1 = i->second;//dst --> vector<next_hop>
                     for (auto j = table1.begin(); j != table1.end(); j++) {
                         Ptr<Node> dst = j->first;  // dst
                         uint32_t dstIP = Settings::hostId2IpMap[dst->GetId()];
@@ -1699,6 +1749,16 @@ int main(int argc, char *argv[]) {
                         conweave_pathPauseTime, conweave_pathAwareRerouting);
                     sw->m_mmu->m_conweaveRouting.SetSwitchInfo(sw->m_isToR, sw->GetId());
                 }
+                if (lb_mode == 12) {
+                    sw->m_mmu->m_hulaRouting.SetConstants(
+                        hula_keepAliveThresh,
+                        hula_probeTransmitInterval,
+                        hula_flowletInterval,
+                        hula_probeGenerationInterval,
+                        hula_tau
+                    );
+                    sw->m_mmu->m_hulaRouting.SetSwitchInfo(sw->m_isToR, sw->GetId());
+                }
             }
         }
 
@@ -1714,6 +1774,10 @@ int main(int argc, char *argv[]) {
         if (lb_mode == 9) {  // CONWEAVE
             Simulator::Schedule(Seconds(flowgen_stop_time + simulator_extra_time),
                                 conweave_history_print);
+        }
+        if (lb_mode == 12) {
+            Simulator::Schedule(Seconds(flowgen_stop_time + simulator_extra_time),
+                                hula_history_print);
         }
     }
 
@@ -1779,7 +1843,6 @@ int main(int argc, char *argv[]) {
     }
     Simulator::Schedule(Seconds(flowgen_start_time), &periodic_monitoring, voq_output,
                         voq_detail_output, uplink_output, conn_output, &lb_mode);
-
     //
     // Now, do the actual simulation.
     //

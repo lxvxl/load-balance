@@ -11,6 +11,7 @@
 #include "ns3/conweave-routing.h"
 #include "ns3/letflow-routing.h"
 #include "ns3/settings.h"
+#include "ns3/hula-routing.h"
 
 
 namespace ns3 {
@@ -115,6 +116,8 @@ class SwitchMmu : public Object {
 
     /*------------ ConWeave Objects-------------*/
     ConWeaveRouting m_conweaveRouting;
+
+    HulaRouting m_hulaRouting;
 
    private:
     bool m_PFCenabled;

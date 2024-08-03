@@ -54,6 +54,7 @@
 #include "ns3/simulator.h"
 #include "ns3/udp-header.h"
 #include "ns3/uinteger.h"
+#include "ns3/hula-header.h"
 
 #define MAP_KEY_EXISTS(map, key) (((map).find(key) != (map).end()))
 
@@ -426,6 +427,24 @@ uint32_t QbbNetDevice::SendPfc(uint32_t qIndex, uint32_t type) {
     p->PeekHeader(ch);
     SwitchSend(0, p, ch);
     return (type == 0 ? m_pausetime : 0);
+}
+
+void QbbNetDevice::SendHulaProbe(uint32_t torID, uint8_t minUtil) {
+    Ptr<Packet> p = Create<Packet>(0);
+    HulaHeader hulah(torID, minUtil);
+    p->AddHeader(hulah);
+    Ipv4Header ipv4h;  // Prepare IPv4 header
+    ipv4h.SetProtocol(0xFB);
+    ipv4h.SetSource(m_node->GetObject<Ipv4>()->GetAddress(m_ifIndex, 0).GetLocal());
+    ipv4h.SetDestination(Ipv4Address("255.255.255.255"));
+    ipv4h.SetPayloadSize(p->GetSize());
+    ipv4h.SetTtl(1);
+    ipv4h.SetIdentification(UniformVariable(0, 65536).GetValue());
+    p->AddHeader(ipv4h);
+    AddHeader(p, 0x800);
+    CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+    p->PeekHeader(ch);
+    SwitchSend(0, p, ch);
 }
 
 bool QbbNetDevice::Attach(Ptr<QbbChannel> ch) {
