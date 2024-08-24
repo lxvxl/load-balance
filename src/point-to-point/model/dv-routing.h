@@ -167,8 +167,8 @@ class DVRouting : public Object {
     bool Error_log = false;
     bool Dre_decrease_log = false;
     //method
-    bool ToR_Rouding = false;
-    bool multi_PathSet = false;
+    bool ToR_Rouding = true;
+    bool multi_PathSet = true;
 
 
     private:
