@@ -169,10 +169,10 @@ def main():
     # make running ID of this config
     # need to check directory exists or not
     isExist = True
-    config_ID = 0
-    while (isExist):
-        config_ID = str(random.randrange(MAX_RAND_RANGE))
-        isExist = os.path.exists(os.getcwd() + "/mix/output/" + config_ID)
+    config_ID = f"{datetime.now().strftime('%m-%d-%H:%M:%S')}-{args.lb}" 
+    # while (isExist):
+    #     config_ID = str(random.randrange(MAX_RAND_RANGE))
+    #     isExist = os.path.exists(os.getcwd() + "/mix/output/" + config_ID)
 
     # input parameters
     cc_mode = cc_modes[args.cc]
@@ -290,6 +290,7 @@ def main():
 
     # make directory if not exists
     isExist = os.path.exists(os.getcwd() + "/mix/output/" + config_ID + "/")
+    print(os.getcwd() + "/mix/output/" + config_ID + "/")
     assert (not isExist)
     # if not isExist:
     os.makedirs(os.getcwd() + "/mix/output/" + config_ID + "/")

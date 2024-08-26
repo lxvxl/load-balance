@@ -53,11 +53,13 @@ class HulaRouting : public Object {
     static TypeId GetTypeId(void);
     static uint64_t GetQpKey(uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg);              // same as in rdma_hw.cc
     static uint32_t nFlowletTimeout;
+    static std::vector<HulaRouting*> hulaModules;
 
     /* main function */
     void RouteInput(Ptr<Packet> p, CustomHeader ch);
     void processProbe(uint32_t inDev, Ptr<Packet> p, CustomHeader ch);
     void updateLink(uint32_t dev, uint32_t packetSize);
+    void active(int time);
 
     /* SET functions */
     void SetSwitchInfo(bool isToR, uint32_t switch_id);
@@ -85,6 +87,8 @@ class HulaRouting : public Object {
     
     std::unordered_set<uint32_t> upLayerDevs;          
     std::unordered_set<uint32_t> downLayerDevs;
+
+    void Print();
 
    private:
     // callback
@@ -128,8 +132,6 @@ class HulaRouting : public Object {
     EventId sendProbeEvent;
 
     //常量
-    bool m_isToR;          // is ToR (leaf)
-    uint32_t m_switch_id;  // switch's nodeID
     // hula constants
     Time keepAliveThresh;        //探针老化时间
     Time probeTransmitInterval;  //转发探针的时间窗口
@@ -139,6 +141,16 @@ class HulaRouting : public Object {
 
     void generateProbe();
     void clearInvalidFlowletItem();             
+
+   public:
+    bool m_isToR;          // is ToR (leaf)
+    uint32_t m_switch_id;  // switch's nodeID
+    //运行过程记录
+    int probeSendNum = 0;       //接收到的probe数量
+    int probeReceiveNum = 0;    //发送的probe数量
+    int probeAgedNum = 0;       //被老化的probe数量
+    int probeUpdateHopNum = 0;  //引起最优路径更新的探针数量
 };
+
 
 }  // namespace ns3

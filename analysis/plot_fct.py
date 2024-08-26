@@ -10,7 +10,20 @@ import matplotlib.ticker as tick
 import math
 from cycler import cycler
 
+#allowed_config_id = {}
+allowed_config_id = {
+    '08-09-01:15:36-fecmp': 'fecmp',
+    '08-09-01:15:41-conga': 'conga',
+    '08-09-01:15:41-conweave': 'conweave',
+    '08-09-01:15:41-fecmp': 'fecmp',
 
+    '08-09-01:15:41-letflow': 'letflow',
+    '08-09-01:15:46-conga': 'conga',
+    '08-09-01:15:46-conweave': 'conweave',
+    '08-09-01:15:46-letflow': 'letflow',
+    '08-10-17:29:57-hula': 'hula',
+    '08-10-17:30:21-hula': 'hula'
+}
 
 # LB/CC mode matching
 cc_modes = {
@@ -29,7 +42,7 @@ lb_modes = {
 }
 topo2bdp = {
     "leaf_spine_128_100G_OS2": 104000,  # 2-tier
-    "fat_k4_100G_OS2": 153000, # 3-tier -> core 400G
+    "fat_k8_100G_OS2": 153000, # 3-tier -> core 400G
 }
 
 C = [
@@ -47,8 +60,8 @@ C = [
 LS = [
     'solid',
     'dashed',
+    'dashdot',
     'dotted',
-    'dashdot'
 ]
 
 M = [
@@ -185,25 +198,28 @@ def main():
     with open(history_filename, "r") as f:
         for line in f.readlines():
             for topo in topo2bdp.keys():
-                if topo in line:
-                    parsed_line = line.replace("\n", "").split(',')
-                    config_id = parsed_line[1]
-                    cc_mode = cc_modes[int(parsed_line[2])]
-                    lb_mode = lb_modes[int(parsed_line[3])]
-                    encoded_fc = (int(parsed_line[9]), int(parsed_line[10]))
-                    if encoded_fc == (0, 1):
-                        flow_control = "IRN"
-                    elif encoded_fc == (1, 0):
-                        flow_control = "Lossless"
-                    else:
-                        continue
-                    topo = parsed_line[13]
-                    netload = parsed_line[16]
-                    key = (topo, netload, flow_control)
-                    if key not in map_key_to_id:
-                        map_key_to_id[key] = [[config_id, lb_mode]]
-                    else:
-                        map_key_to_id[key].append([config_id, lb_mode])
+                if topo not in line:
+                    continue
+                parsed_line = line.replace("\n", "").split(',')
+                config_id = parsed_line[1]
+                if len(allowed_config_id) != 0 and config_id not in allowed_config_id.keys():
+                    continue
+                cc_mode = cc_modes[int(parsed_line[2])]
+                lb_mode = lb_modes[int(parsed_line[3])]
+                encoded_fc = (int(parsed_line[9]), int(parsed_line[10]))
+                if encoded_fc == (0, 1):
+                    flow_control = "IRN"
+                elif encoded_fc == (1, 0):
+                    flow_control = "Lossless"
+                else:
+                    continue
+                topo = parsed_line[13]
+                netload = parsed_line[16]
+                key = (topo, netload, flow_control)
+                if key not in map_key_to_id:
+                    map_key_to_id[key] = [[config_id, lb_mode]]
+                else:
+                    map_key_to_id[key].append([config_id, lb_mode])
 
     for k, v in map_key_to_id.items():
 
@@ -222,7 +238,7 @@ def main():
         
         xvals = [i for i in range(STEP, 100 + STEP, STEP)]
 
-        lbmode_order = ["fecmp", "conga", "letflow", "conweave"]
+        lbmode_order = ["fecmp", "conga", "letflow", "conweave", 'hula']
         for tgt_lbmode in lbmode_order:
             for vv in v:
                 config_id = vv[0]
@@ -232,12 +248,15 @@ def main():
                     # plotting
                     fct_slowdown = output_dir + "/{id}/{id}_out_fct.txt".format(id=config_id)
                     result = get_steps_from_raw(fct_slowdown, int(time_start), int(time_end), STEP)
-                    
+                    if len(allowed_config_id) != 0:
+                        label = allowed_config_id[config_id]
+                    else:
+                        label = lb_mode
                     ax.plot(xvals,
                         result["avg"],
                         markersize=1.0,
-                        linewidth=3.0,
-                        label="{}".format(lb_mode))
+                        linewidth=1.5,
+                        label=label)
                 
         ax.legend(bbox_to_anchor=(0.0, 1.2), loc="upper left", borderaxespad=0,
                 frameon=False, fontsize=12, facecolor='white', ncol=2,
@@ -275,7 +294,7 @@ def main():
         
         xvals = [i for i in range(STEP, 100 + STEP, STEP)]
 
-        lbmode_order = ["fecmp", "conga", "letflow", "conweave"]
+        lbmode_order = ["fecmp", "conga", "letflow", "conweave", 'hula']
         for tgt_lbmode in lbmode_order:
             for vv in v:
                 config_id = vv[0]
@@ -285,12 +304,15 @@ def main():
                     # plotting
                     fct_slowdown = output_dir + "/{id}/{id}_out_fct.txt".format(id=config_id)
                     result = get_steps_from_raw(fct_slowdown, int(time_start), int(time_end), STEP)
-                    
+                    if len(allowed_config_id) != 0:
+                        label = allowed_config_id[config_id]
+                    else:
+                        label = lb_mode
                     ax.plot(xvals,
                         result["p99"],
                         markersize=1.0,
-                        linewidth=3.0,
-                        label="{}".format(lb_mode))
+                        linewidth=1.5,
+                        label=label)
                 
         ax.legend(bbox_to_anchor=(0.0, 1.2), loc="upper left", borderaxespad=0,
                 frameon=False, fontsize=12, facecolor='white', ncol=2,

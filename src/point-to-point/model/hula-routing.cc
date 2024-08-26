@@ -37,14 +37,19 @@ NS_LOG_COMPONENT_DEFINE("HulaRouting");
 
 namespace ns3 {
     uint32_t HulaRouting::nFlowletTimeout = 0;
+    std::vector<HulaRouting*> HulaRouting::hulaModules;
+
     /*----- Hula-Route ------*/
     HulaRouting::HulaRouting() {
         m_isToR = false;
         m_switch_id = (uint32_t)-1;
-
         // set constan
-        sendProbeEvent = Simulator::Schedule(Seconds(0), &HulaRouting::generateProbe, this);
         lastFlowletAgingTime = Seconds(0);
+        HulaRouting::hulaModules.push_back(this);
+    }
+
+    void HulaRouting::active(int time) {
+        sendProbeEvent = Simulator::Schedule(Seconds(time), &HulaRouting::generateProbe, this);
     }
 
     // it defines flowlet's 64bit key (order does not matter)
@@ -70,6 +75,7 @@ namespace ns3 {
 
     void HulaRouting::DoSwitchSendHulaProbe(uint32_t dev, uint32_t torID, uint8_t minUtil) {
         m_switchSendHulaProbeCallback(dev, torID, minUtil);
+        probeSendNum++;
     }
 
     void HulaRouting::SetSwitchSendCallback(SwitchSendCallback switchSendCallback) {
@@ -140,6 +146,9 @@ namespace ns3 {
         // 如果当前表项还没有初始化，就使用ECMP
         if (target2nextHop.find(dstToRId) == target2nextHop.end()) {
             DoSwitchSendToDev(p, ch);
+            if (Simulator::Now() > Seconds(2.0001)) {
+                //std::cout<<Simulator::Now()<<"路由表尚未初始化\n";
+            }
             return;
         }
 
@@ -154,6 +163,7 @@ namespace ns3 {
             flowletTable[qpkey].nPackets++;
             DoSwitchSend(p, ch, flowletTable[qpkey].nextHopDev, ch.udp.pg);
         } else {
+            //printf("another flow\n");
             if (flowletTable.find(qpkey) != flowletTable.end()) { //分片
                 HulaRouting::nFlowletTimeout++;
             }
@@ -169,11 +179,20 @@ namespace ns3 {
         assert(ch.l3Prot == 0xFB);
         uint32_t torID = ch.hula.torID;
         uint8_t  util = ch.hula.minUtil;
-        uint8_t  minUtil  = std::max(util, (uint8_t)(devInfo[inDev].curUtil / devInfo[inDev].maxBitRate * tau.GetSeconds() * 256));
+        uint8_t  minUtil  = std::max(util, (uint8_t)(devInfo[inDev].curUtil / (devInfo[inDev].maxBitRate * tau.GetSeconds()) * 256));
         Time now = Simulator::Now();
+        if (m_switch_id == 128) {
+            //printf("received a probe, indev=%d, torid=%d, minUtil=%d\n", inDev, torID, util);
+        }
         if (target2nextHop[torID].nextHopDev == inDev                       //如果输入源与当前下一跳一致
             || now - target2nextHop[torID].lastUpdateTime > keepAliveThresh //如果当前下一条已经老化
             || target2nextHop[torID].pathUtil > minUtil) {                  //如果当前链路状态大于之前的
+            if (now - target2nextHop[torID].lastUpdateTime > keepAliveThresh) {
+                probeAgedNum++;
+            }
+            if (target2nextHop[torID].pathUtil > minUtil && inDev != target2nextHop[torID].nextHopDev) {
+                probeUpdateHopNum++;
+            }
             target2nextHop[torID].nextHopDev = inDev;
             target2nextHop[torID].pathUtil = minUtil;
             target2nextHop[torID].lastUpdateTime = now;
@@ -184,15 +203,16 @@ namespace ns3 {
                 if (dev == inDev) {
                     continue;
                 }
-                DoSwitchSend(p, ch, dev, 0);
+                DoSwitchSendHulaProbe(dev, torID, minUtil);
             }
             if (downLayerDevs.find(inDev) != downLayerDevs.end()) { //如果原探针是从下层传过来的，需要转发到上层
                 for (auto dev : upLayerDevs) {
-                    DoSwitchSend(p, ch, dev, 0);
+                    DoSwitchSendHulaProbe(dev, torID, minUtil);
                 }
             }
             target2nextHop[torID].lastProbeSendTime = now;
         }
+        probeReceiveNum++;
     }
 
     void HulaRouting::clearInvalidFlowletItem() {
@@ -215,8 +235,19 @@ namespace ns3 {
 
     void HulaRouting::generateProbe() {
         for (auto dev : upLayerDevs) {
+            //std::cout<<Simulator::Now()<<m_switch_id<<"send a probe on "<<dev<<std::endl;
             DoSwitchSendHulaProbe(dev, m_switch_id, 0);
         }
         sendProbeEvent = Simulator::Schedule(probeGenerationInterval, &HulaRouting::generateProbe, this);
+    }
+
+    void HulaRouting::Print() {
+        std::cout<<"===============Switch "<<m_switch_id<<"====================\n";
+        for (auto& pair : target2nextHop) {
+            printf("dst %d: %d %d\n", pair.first, pair.second.nextHopDev, (int)pair.second.pathUtil);
+        }
+        for (auto& pair : devInfo) {
+            printf("link %d: %ld\n", pair.first, pair.second.curUtil);
+        }
     }
 }  // namespace ns3

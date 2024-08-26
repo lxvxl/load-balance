@@ -78,9 +78,9 @@ Time conweave_defaultVOQWaitingTime = MicroSeconds(500);  // default flush timer
 bool conweave_pathAwareRerouting = true;
 
 // Hula params
-Time hula_probeGenerationInterval = MicroSeconds(100);//探针的生成间隔
-Time hula_keepAliveThresh = MicroSeconds(500);        //探针老化时间
-Time hula_probeTransmitInterval = MicroSeconds(30);  //转发探针的时间窗口
+Time hula_probeGenerationInterval = MicroSeconds(5);//探针的生成间隔
+Time hula_keepAliveThresh = MicroSeconds(30);        //探针老化时间
+Time hula_probeTransmitInterval = MicroSeconds(5);  //转发探针的时间窗口
 Time hula_flowletInterval = MicroSeconds(100);       //flowlet的区分间隔 (e.g., 100us)
 //计算链路利用率使用，至少是探针的生成间隔的两倍,这里暂时设置为三倍
 Time hula_tau = MicroSeconds(hula_probeGenerationInterval.GetMicroSeconds() * 3);      
@@ -334,6 +334,16 @@ void periodic_monitoring(FILE *fout_voq, FILE *fout_voq_detail, FILE *fout_uplin
                          uint32_t *lb_mode) {
     uint32_t lb_mode_val = *lb_mode;
     uint64_t now = Simulator::Now().GetNanoSeconds();
+    if (lb_mode_val == 12 && 0) {
+        std::cout<<"Periodic monitor "<<now<<std::endl;
+        for (int i = 0; i < n.GetN(); i++) {
+            Ptr<Node> node = n.Get(i);
+            if (node->GetNodeType() == 1) {
+                Ptr<SwitchNode> snode = DynamicCast<SwitchNode>(node);
+                snode->m_mmu->m_hulaRouting.Print();
+            }
+        }
+    }
     for (const auto &tor2If : torId2UplinkIf) {  // for each TOR switches
         Ptr<Node> node = n.Get(tor2If.first);    // tor id
         auto swNode = DynamicCast<SwitchNode>(node);
@@ -479,6 +489,10 @@ void hula_history_print() {
     std::cout << "\n------------Hula History---------------" << std::endl;
     std::cout << "Number of flowlet's timeout:" << HulaRouting::nFlowletTimeout
               << "\nHula's timeout: " << hula_flowletInterval << std::endl;    
+    for (auto module : HulaRouting::hulaModules) {
+        printf("%d: Recieved %d probes, sent %d probes, %d aged probes, %d probes update next hop\n", 
+            module->m_switch_id, module->probeReceiveNum, module->probeSendNum, module->probeAgedNum, module->probeUpdateHopNum);
+    }
 }
 /**
  * @brief When one RDMA is finished, so does (1) QP, (2) RxQP, (3) write it on file fct.txt.
@@ -1539,22 +1553,26 @@ int main(int argc, char *argv[]) {
 
         //配置hula
         if (lb_mode == 12) {
+            std::cout<<"=====Hula Constants=====\n";
+            std::cout<<"Hula probe generation interval:"<<hula_probeGenerationInterval<<std::endl;
+            std::cout<<"Hula probe transmit interval:"<<hula_probeTransmitInterval<<std::endl;
             for (auto &pair1 : nbr2if) {
                 if (pair1.first->GetNodeType() == 0) { //只考虑交换机
                     continue;
                 }
                 Ptr<SwitchNode> snode = DynamicCast<SwitchNode>(pair1.first);
+                if (snode->m_isToR) {
+                    snode->m_mmu->m_hulaRouting.active(2);
+                }
                 for (auto &pair2 : pair1.second) {
                     Ptr<Node> dnode = pair2.first;
                     Interface &itf = pair2.second;
-                    if (snode->m_isToR) {
-                        if (dnode->GetNodeType() == 1) {// 如果连接的是另一台交换机
-                            snode->m_mmu->m_hulaRouting.upLayerDevs.insert(itf.idx);
-                        } else {
-                            snode->m_mmu->m_hulaRouting.downLayerDevs.insert(itf.idx);
-                        }
-                    } else { //如果不是tor交换机
+                    if (snode->GetId() < dnode->GetId()) {
+                        snode->m_mmu->m_hulaRouting.upLayerDevs.insert(itf.idx);
+                        //std::cout<<snode->GetId()<<"上"<<dnode->GetId()<<std::endl;
+                    } else {
                         snode->m_mmu->m_hulaRouting.downLayerDevs.insert(itf.idx);
+                        //std::cout<<snode->GetId()<<"下"<<dnode->GetId()<<std::endl;
                     }
                     snode->m_mmu->m_hulaRouting.SetLinkCapacity(itf.idx, itf.bw);
                 }

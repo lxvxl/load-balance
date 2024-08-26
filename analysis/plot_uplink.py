@@ -11,7 +11,20 @@ import math
 from cycler import cycler
 import numpy as np
 
+allowed_config_id = {
+    '08-09-01:15:36-fecmp': 'fecmp',
+    '08-09-01:15:41-conga': 'conga',
+    '08-09-01:15:41-conweave': 'conweave',
+    '08-09-01:15:41-fecmp': 'fecmp',
 
+    '08-09-01:15:41-letflow': 'letflow',
+    '08-09-01:15:46-conga': 'conga',
+    '08-09-01:15:46-conweave': 'conweave',
+    '08-09-01:15:46-letflow': 'letflow',
+    '08-10-17:29:57-hula': 'hula',
+    '08-10-17:30:21-hula': 'hula'
+}
+#allowed_config_id = {}
 
 # LB/CC mode matching
 cc_modes = {
@@ -26,10 +39,11 @@ lb_modes = {
     3: "conga",
     6: "letflow",
     9: "conweave",
+    12: "hula"
 }
 topo2bdp = {
     "leaf_spine_128_100G_OS2": 104000,  # 2-tier
-    "fat_k4_100G_OS2": 153000, # 3-tier -> core 400G
+    "fat_k8_100G_OS2": 153000, # 3-tier -> core 400G
 }
 
 C = [
@@ -168,27 +182,30 @@ def main():
     map_key_to_id = dict()
 
     with open(history_filename, "r") as f:
-        for line in f.readlines():
+        for line in f.readlines(): 
             for topo in topo2bdp.keys():
-                if topo in line:
-                    parsed_line = line.replace("\n", "").split(',')
-                    config_id = parsed_line[1]
-                    cc_mode = cc_modes[int(parsed_line[2])]
-                    lb_mode = lb_modes[int(parsed_line[3])]
-                    encoded_fc = (int(parsed_line[9]), int(parsed_line[10]))
-                    if encoded_fc == (0, 1):
-                        flow_control = "IRN"
-                    elif encoded_fc == (1, 0):
-                        flow_control = "Lossless"
-                    else:
-                        continue
-                    topo = parsed_line[13]
-                    netload = parsed_line[16]
-                    key = (topo, netload, flow_control)
-                    if key not in map_key_to_id:
-                        map_key_to_id[key] = [[config_id, lb_mode]]
-                    else:
-                        map_key_to_id[key].append([config_id, lb_mode])
+                if topo not in line:
+                    continue
+                parsed_line = line.replace("\n", "").split(',')
+                config_id = parsed_line[1]
+                if len(allowed_config_id) != 0 and config_id not in allowed_config_id.keys():
+                    continue
+                cc_mode = cc_modes[int(parsed_line[2])]
+                lb_mode = lb_modes[int(parsed_line[3])]
+                encoded_fc = (int(parsed_line[9]), int(parsed_line[10]))
+                if encoded_fc == (0, 1):
+                    flow_control = "IRN"
+                elif encoded_fc == (1, 0):
+                    flow_control = "Lossless"
+                else:
+                    continue
+                topo = parsed_line[13]
+                netload = parsed_line[16]
+                key = (topo, netload, flow_control)
+                if key not in map_key_to_id:
+                    map_key_to_id[key] = [[config_id, lb_mode]]
+                else:
+                    map_key_to_id[key].append([config_id, lb_mode])
 
     for k, v in map_key_to_id.items():
         ################## Uplink CDF plotting ##################
@@ -203,7 +220,7 @@ def main():
         ax.yaxis.set_ticks_position('left')
         ax.xaxis.set_ticks_position('bottom')
         
-        lbmode_order = ["fecmp", "conga", "letflow", "conweave"]
+        lbmode_order = ["fecmp", "conga", "letflow", "conweave", "hula"]
         for tgt_lbmode in lbmode_order:
             for vv in v:
                 config_id = vv[0]
@@ -271,12 +288,15 @@ def main():
                                 ts_data_arr.append(val)
 
                         cdf_ts_data_arr = getCdfFromArray(ts_data_arr)
-                        
+                        if len(allowed_config_id) != 0:
+                            label = allowed_config_id[config_id]
+                        else:
+                            label = lb_mode
                         ax.plot([x[0] for x in cdf_ts_data_arr],
                                 [x[3] for x in cdf_ts_data_arr],
                                 markersize=0,
                                 linewidth=3.0,
-                                label="{}".format(lb_mode))
+                                label=label)
         
         ax.legend(frameon=False, fontsize=12, facecolor='white')
         

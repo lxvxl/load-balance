@@ -31,11 +31,15 @@ namespace ns3 {
 
 NS_OBJECT_ENSURE_REGISTERED (HulaHeader);
 
-    HulaHeader::HulaHeader (uint32_t torID, uint32_t minUtil)
-        : torID(torID), minUtil(minUtil) {}
+    HulaHeader::HulaHeader (uint32_t torID, uint32_t minUtil) {
+        payload.data.torID = torID;
+        payload.data.minUtil = minUtil;
+    }
 
-    HulaHeader::HulaHeader ()
-        : torID(0), minUtil(0) {}
+    HulaHeader::HulaHeader () {
+        payload.data.torID = 0;
+        payload.data.minUtil = 0;
+    }
 
     HulaHeader::~HulaHeader () {}
 
@@ -44,15 +48,15 @@ NS_OBJECT_ENSURE_REGISTERED (HulaHeader);
     }
 
     uint32_t HulaHeader::GetTorID () const {
-        return torID;
+        return payload.data.torID;
     }
 
     void HulaHeader::SetMinUtil (uint8_t minUtil) {
         minUtil = minUtil;
     }
 
-    uint8_t HulaHeader::GetMinUti () const {
-        return minUtil;
+    uint8_t HulaHeader::GetMinUtil () const {
+        return payload.data.minUtil;
     }
 
     TypeId HulaHeader::GetTypeId (void) {
@@ -68,21 +72,19 @@ NS_OBJECT_ENSURE_REGISTERED (HulaHeader);
     }
 
     void HulaHeader::Print (std::ostream &os) const {
-        os << "probe=<" << torID << ", " << minUtil << ">";
+        os << "probe=<" << payload.data.torID << ", " << payload.data.minUtil << ">";
     }
 
     uint32_t HulaHeader::GetSerializedSize (void)  const {
-        return 5;
+        return 4;
     }
 
     void HulaHeader::Serialize (Buffer::Iterator start)  const {
-        start.WriteU32(torID);
-        start.WriteU8(minUtil);
+        start.WriteU32(payload.u32view);
     }
 
     uint32_t HulaHeader::Deserialize (Buffer::Iterator start) {
-        torID = start.ReadU32 ();
-        minUtil = start.ReadU8 ();
+        payload.u32view = start.ReadU32();
         return GetSerializedSize ();
     }
 

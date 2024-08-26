@@ -53,7 +53,7 @@ namespace ns3 {
 
         //Getters
         uint32_t GetTorID () const;
-        uint8_t GetMinUti () const;
+        uint8_t GetMinUtil () const;
 
         static TypeId GetTypeId (void);
         virtual TypeId GetInstanceTypeId (void) const;
@@ -63,7 +63,14 @@ namespace ns3 {
         virtual uint32_t Deserialize (Buffer::Iterator start);
 
        private:
-        uint32_t torID;
-        uint8_t minUtil;
+        union {
+            struct {
+                uint32_t torID:24;
+                uint8_t  minUtil:8;
+            } data;
+            uint32_t u32view;
+        } payload;
+        //uint32_t torID;
+        //uint8_t minUtil;
     };
 }  // namespace ns3
