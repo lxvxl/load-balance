@@ -157,15 +157,30 @@ void RdmaHw::Setup(QpCompleteCallback cb) {
 }
 
 uint32_t RdmaHw::GetNicIdxOfQp(Ptr<RdmaQueuePair> qp) {
+    if (Settings::lb_mode == 9){
+        //对于ConWeave， 在这里指定Src到达SrcToR的结果：
+        uint32_t flow_id = Settings::QPPair_info2FlowId[std::make_tuple(qp->sip, qp->dip, qp->sport, qp->dport)];
+        uint32_t SrcToR_id = Settings::flowId2SrcDst[flow_id].first;
+        uint32_t outPort = Settings::flowId2Port2Src[flow_id];
+        return outPort;
+    }
     auto &v = m_rtTable[qp->dip.Get()];
     if (v.size() > 0) {
-        return v[qp->GetHash() % v.size()];
+        uint32_t hash = qp->GetHash();
+        auto it = std::find(Hashlist.begin(), Hashlist.end(), hash);
+        if (it == Hashlist.end()) {
+            Hashlist.push_back(hash);
+            return v[(Hashlist.size() - 1) % v.size()];
+        }else{
+            return v[std::distance(Hashlist.begin(), it) % v.size()];
+        }
+        // return v[qp->GetHash() % v.size()];
     }
     NS_ASSERT_MSG(false, "We assume at least one NIC is alive");
     std::cout << "We assume at least one NIC is alive" << std::endl;
     exit(1);
 }
-
+ 
 uint64_t RdmaHw::GetQpKey(uint32_t dip, uint16_t sport, uint16_t dport,
                           uint16_t pg) {  // Sender perspective
     return ((uint64_t)dip << 32) | ((uint64_t)sport << 16) | (uint64_t)dport | (uint64_t)pg;
@@ -201,12 +216,14 @@ void RdmaHw::AddQueuePair(uint64_t size, uint16_t pg, Ipv4Address sip, Ipv4Addre
 
     // add qp
     uint32_t nic_idx = GetNicIdxOfQp(qp);
+    std::cout << "node: " << m_node->GetId() << " flow id : " << qp->m_flow_id <<" nic_idx: " << nic_idx << std::endl;
     m_nic[nic_idx].qpGrp->AddQp(qp);
     uint64_t key = GetQpKey(dip.Get(), sport, dport, pg);
     m_qpMap[key] = qp;
 
     // set init variables
     DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
+    std::cout << "bps: " << m_bps << std::endl;
     qp->m_rate = m_bps;
     qp->m_max_rate = m_bps;
     if (m_cc_mode == 1) {
@@ -326,7 +343,7 @@ int RdmaHw::ReceiveUdp(Ptr<Packet> p, CustomHeader &ch) {
 
     bool cnp_check = false;
     int x = ReceiverCheckSeq(ch.udp.seq, rxQp, payload_size, cnp_check);
-
+    // std::cout << "ReceiverCheckSeq: " << x << std::endl;
     if (x == 1 || x == 2 || x == 6) {  // generate ACK or NACK
         qbbHeader seqh;
         seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
@@ -571,10 +588,12 @@ size_t RdmaHw::getIrnBufferOverhead() {
 }
 
 int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch) {
-    // #if (SLB_DEBUG == true)
-    //     std::cout << "[RdmaHw::Receive] Node(" << m_node->GetId() << ")," << PARSE_FIVE_TUPLE(ch)
-    //     << "l3Prot:" << ch.l3Prot << ",at" << Simulator::Now() << std::endl;
-    // #endif
+    #if (SLB_DEBUG == true)
+        std::cout << "[RdmaHw::Receive] Node(" << m_node->GetId() << ")," << PARSE_FIVE_TUPLE(ch)
+        << "l3Prot:" << ch.l3Prot << ",at" << Simulator::Now() << std::endl;
+    #endif
+    // std::cout << "[RdmaHw::Receive] Node(" << m_node->GetId() << ")," << PARSE_FIVE_TUPLE(ch)
+    //     << "l3Prot:" << std::hex  << ch.l3Prot << ",at" << std::dec << Simulator::Now() << std::endl;
     if (ch.l3Prot == 0x11) {  // UDP
         return ReceiveUdp(p, ch);
     } else if (ch.l3Prot == 0xFF) {  // CNP
@@ -903,12 +922,8 @@ void RdmaHw::ChangeRate(Ptr<RdmaQueuePair> qp, DataRate new_rate) {
  * Mellanox's version of DCQCN
  *****************************/
 void RdmaHw::UpdateAlphaMlx(Ptr<RdmaQueuePair> q) {
-#if PRINT_LOG
 // std::cout << Simulator::Now() << " alpha update:" << m_node->GetId() << ' ' << q->mlx.m_alpha <<
-// ' ' << (int)q->mlx.m_alpha_cnp_arrived << '\n'; printf("%lu alpha update: %08x %08x %u %u
-// %.6lf->", Simulator::Now().GetTimeStep(), q->sip.Get(), q->dip.Get(), q->sport, q->dport,
-// q->mlx.m_alpha);
-#endif
+// ' ' << (int)q->mlx.m_alpha_cnp_arrived << '\n'; printf("%lu alpha update: %08x %08x %u %u %.6lf->", Simulator::Now().GetTimeStep(), q->sip.Get(), q->dip.Get(), q->sport, q->dport,q->mlx.m_alpha);
     if (q->mlx.m_alpha_cnp_arrived) {                       // cnp -> increase
         q->mlx.m_alpha = (1 - m_g) * q->mlx.m_alpha + m_g;  // binary feedback
     } else {                                                // no cnp -> decrease
@@ -928,6 +943,7 @@ void RdmaHw::ScheduleUpdateAlphaMlx(Ptr<RdmaQueuePair> q) {
 void RdmaHw::cnp_received_mlx(Ptr<RdmaQueuePair> q) {
     q->mlx.m_alpha_cnp_arrived = true;     // set CNP_arrived bit for alpha update
     q->mlx.m_decrease_cnp_arrived = true;  // set CNP_arrived bit for rate decrease
+    std::cout << "ID: " << m_node->GetId() << ",Receive cnp " << q->m_flow_id <<  ",m_first_cnp:" <<q->mlx.m_first_cnp << ",at" << Simulator::Now() << std::endl;
     if (q->mlx.m_first_cnp) {
         // init alpha
         q->mlx.m_alpha = 1;
@@ -938,6 +954,7 @@ void RdmaHw::cnp_received_mlx(Ptr<RdmaQueuePair> q) {
         ScheduleDecreaseRateMlx(q, 1);  // add 1 ns to make sure rate decrease is after alpha update
         // set rate on first CNP
         q->mlx.m_targetRate = q->m_rate = m_rateOnFirstCNP * q->m_rate;
+        std::cout << "ID: " << m_node->GetId() <<  ",First cnp target rate:" << q->mlx.m_targetRate << ",at" << Simulator::Now() << std::endl;
         q->mlx.m_first_cnp = false;
     }
 }
@@ -945,11 +962,10 @@ void RdmaHw::cnp_received_mlx(Ptr<RdmaQueuePair> q) {
 void RdmaHw::CheckRateDecreaseMlx(Ptr<RdmaQueuePair> q) {
     ScheduleDecreaseRateMlx(q, 0);
     if (q->mlx.m_decrease_cnp_arrived) {
-#if PRINT_LOG
-        printf("%lu rate dec: %08x %08x %u %u (%0.3lf %.3lf)->", Simulator::Now().GetTimeStep(),
+        printf("%lu rate dec: %08x %08x %u %u (%0.3lf %.3lf)\n", Simulator::Now().GetTimeStep(),
                q->sip.Get(), q->dip.Get(), q->sport, q->dport,
                q->mlx.m_targetRate.GetBitRate() * 1e-9, q->m_rate.GetBitRate() * 1e-9);
-#endif
+        std::cout  << "m_EcnClampTgtRate:" << m_EcnClampTgtRate << std::endl; 
         bool clamp = true;
         if (!m_EcnClampTgtRate) {
             if (q->mlx.m_rpTimeStage == 0) clamp = false;
@@ -962,6 +978,7 @@ void RdmaHw::CheckRateDecreaseMlx(Ptr<RdmaQueuePair> q) {
         q->mlx.m_rpTimeStage = 0;
         q->mlx.m_decrease_cnp_arrived = false;
         Simulator::Cancel(q->mlx.m_rpTimer);
+        // std::cout << "m_rpgTimeReset: " << m_rpgTimeReset << std::endl;
         q->mlx.m_rpTimer = Simulator::Schedule(MicroSeconds(m_rpgTimeReset),
                                                &RdmaHw::RateIncEventTimerMlx, this, q);
 #if PRINT_LOG
@@ -977,6 +994,7 @@ void RdmaHw::ScheduleDecreaseRateMlx(Ptr<RdmaQueuePair> q, uint32_t delta) {
 }
 
 void RdmaHw::RateIncEventTimerMlx(Ptr<RdmaQueuePair> q) {
+    // std::cout << "ID: " << m_node->GetId() << ",RateIncEventTimerMlx " << q->m_flow_id << ",at" << Simulator::Now() << std::endl;
     q->mlx.m_rpTimer =
         Simulator::Schedule(MicroSeconds(m_rpgTimeReset), &RdmaHw::RateIncEventTimerMlx, this, q);
     RateIncEventMlx(q);
@@ -994,41 +1012,42 @@ void RdmaHw::RateIncEventMlx(Ptr<RdmaQueuePair> q) {
 }
 
 void RdmaHw::FastRecoveryMlx(Ptr<RdmaQueuePair> q) {
-#if PRINT_LOG
+
     printf("%lu fast recovery: %08x %08x %u %u (%0.3lf %.3lf)->", Simulator::Now().GetTimeStep(),
            q->sip.Get(), q->dip.Get(), q->sport, q->dport, q->mlx.m_targetRate.GetBitRate() * 1e-9,
            q->m_rate.GetBitRate() * 1e-9);
-#endif
+
     q->m_rate = (q->m_rate / 2) + (q->mlx.m_targetRate / 2);
-#if PRINT_LOG
+
     printf("(%.3lf %.3lf)\n", q->mlx.m_targetRate.GetBitRate() * 1e-9,
            q->m_rate.GetBitRate() * 1e-9);
-#endif
+
 }
 void RdmaHw::ActiveIncreaseMlx(Ptr<RdmaQueuePair> q) {
-#if PRINT_LOG
+// #if PRINT_LOG
     printf("%lu active inc: %08x %08x %u %u (%0.3lf %.3lf)->", Simulator::Now().GetTimeStep(),
            q->sip.Get(), q->dip.Get(), q->sport, q->dport, q->mlx.m_targetRate.GetBitRate() * 1e-9,
            q->m_rate.GetBitRate() * 1e-9);
-#endif
+// #endif
     // get NIC
     uint32_t nic_idx = GetNicIdxOfQp(q);
     Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
     // increate rate
     q->mlx.m_targetRate += m_rai;
     if (q->mlx.m_targetRate > dev->GetDataRate()) q->mlx.m_targetRate = dev->GetDataRate();
+    // std::cout << "ID: " << m_node->GetId() << ",Dev_getdatarate " << dev->GetDataRate() << ",at" << Simulator::Now() << std::endl;
     q->m_rate = (q->m_rate / 2) + (q->mlx.m_targetRate / 2);
-#if PRINT_LOG
+// #if PRINT_LOG
     printf("(%.3lf %.3lf)\n", q->mlx.m_targetRate.GetBitRate() * 1e-9,
            q->m_rate.GetBitRate() * 1e-9);
-#endif
+// #endif
 }
 void RdmaHw::HyperIncreaseMlx(Ptr<RdmaQueuePair> q) {
-#if PRINT_LOG
+// #if PRINT_LOG
     printf("%lu hyper inc: %08x %08x %u %u (%0.3lf %.3lf)->", Simulator::Now().GetTimeStep(),
            q->sip.Get(), q->dip.Get(), q->sport, q->dport, q->mlx.m_targetRate.GetBitRate() * 1e-9,
            q->m_rate.GetBitRate() * 1e-9);
-#endif
+// #endif
     // get NIC
     uint32_t nic_idx = GetNicIdxOfQp(q);
     Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
@@ -1036,10 +1055,10 @@ void RdmaHw::HyperIncreaseMlx(Ptr<RdmaQueuePair> q) {
     q->mlx.m_targetRate += m_rhai;
     if (q->mlx.m_targetRate > dev->GetDataRate()) q->mlx.m_targetRate = dev->GetDataRate();
     q->m_rate = (q->m_rate / 2) + (q->mlx.m_targetRate / 2);
-#if PRINT_LOG
+// #if PRINT_LOG
     printf("(%.3lf %.3lf)\n", q->mlx.m_targetRate.GetBitRate() * 1e-9,
            q->m_rate.GetBitRate() * 1e-9);
-#endif
+// #endif
 }
 
 /***********************

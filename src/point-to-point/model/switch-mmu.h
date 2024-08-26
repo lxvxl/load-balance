@@ -12,6 +12,7 @@
 #include "ns3/letflow-routing.h"
 #include "ns3/settings.h"
 #include "ns3/hula-routing.h"
+#include "ns3/dv-routing.h"
 
 
 namespace ns3 {
@@ -40,7 +41,7 @@ class SwitchMmu : public Object {
     void SetResume(uint32_t port, uint32_t qIndex);
     void GetPauseClasses(uint32_t port, uint32_t qIndex, bool pClasses[]);
     bool GetResumeClasses(uint32_t port, uint32_t qIndex);
-
+ 
     void SetBroadcomParams(uint32_t buffer_cell_limit_sp,  // ingress sp buffer threshold p.120
                            uint32_t buffer_cell_limit_sp_shared,  // ingress sp buffer shared
                                                                   // threshold, nonshare -> share
@@ -76,6 +77,13 @@ class SwitchMmu : public Object {
 
     uint32_t GetIngressSP(uint32_t port, uint32_t pgIndex);
     uint32_t GetEgressSP(uint32_t port, uint32_t qIndex);
+
+    uint32_t GetusedIngressPortBytes(uint32_t port);
+    uint32_t GetusedIngressSPBytes();
+    uint32_t Getport_max_shared_cell(void) const { return m_port_max_shared_cell; }
+    uint32_t GetusedEgressQSharedBytes(uint32_t port, uint32_t qIndex);
+    uint32_t Getop_uc_port_config1_cell(void) const { return m_op_uc_port_config1_cell; }
+    
 
     // config
     uint32_t node_id;
@@ -118,6 +126,8 @@ class SwitchMmu : public Object {
     ConWeaveRouting m_conweaveRouting;
 
     HulaRouting m_hulaRouting;
+    /*------------ DVObjects-------------*/
+    DVRouting m_dvRouting;
 
    private:
     bool m_PFCenabled;

@@ -119,7 +119,7 @@ uint32_t RdmaQueuePair::GetHash(void) {
     buf.dport = dport;
     return Hash32(buf.c, 12);
 }
-
+ 
 void RdmaQueuePair::Acknowledge(uint64_t ack) {
     if (ack > snd_una) {
         snd_una = ack;

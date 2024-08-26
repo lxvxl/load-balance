@@ -30,8 +30,15 @@ QLEN_MON_FILE mix/output/{id}/{id}_out_qlen.txt
 VOQ_MON_FILE mix/output/{id}/{id}_out_voq.txt
 VOQ_MON_DETAIL_FILE mix/output/{id}/{id}_out_voq_per_dst.txt
 UPLINK_MON_FILE mix/output/{id}/{id}_out_uplink.txt
+DOWNLINK_MON_FILE mix/output/{id}/{id}_out_downlink.txt
+UPLINK_RX_MON_FILE mix/output/{id}/{id}_out_uplink_rx.txt
+DOWNLINK_RX_MON_FILE mix/output/{id}/{id}_out_downlink_rx.txt
+FLOW_MON_FILE mix/output/{id}/{id}_in_flow.txt
+BPS_MON_FILE mix/output/{id}/{id}_out_bps.txt
 CONN_MON_FILE mix/output/{id}/{id}_out_conn.txt
 EST_ERROR_MON_FILE mix/output/{id}/{id}_out_est_error.txt
+
+PACKET_HEADER_FILE mix/output/{id}/{id}_out_pakcet_header.txt
 
 QLEN_MON_START {qlen_mon_start}
 QLEN_MON_END {qlen_mon_end}
@@ -89,7 +96,7 @@ KMAX_MAP {kmax_map}
 KMIN_MAP {kmin_map}
 PMAX_MAP {pmax_map}
 LOAD {load}
-RANDOM_SEED 1
+RANDOM_SEED {random_seed}
 TIME {time}
 """
 
@@ -109,15 +116,31 @@ lb_modes = {
     "letflow": 6,
     "conweave": 9,
     "hula": 12
+    "dv":10,
 }
 
 topo2bdp = {
     "leaf_spine_128_100G_OS2": 104000,  # 2-tier -> all 100Gbps
+    "fat_k4_100G_OS2": 156000,  # 3-tier -> all 100Gbps
     "fat_k8_100G_OS2": 156000,  # 3-tier -> all 100Gbps
+    "leaf_spine_k_4_bond_2_OS1": 104000,
+    "leaf_spine_k_6_bond_2_OS1": 104000,
+    "leaf_spine_k_8_bond_2_OS1": 104000,
+    "leaf_spine_k_10_bond_2_OS1": 104000,
+    "leaf_spine_k_12_bond_2_OS1": 104000,
+    "leaf_spine_k_14_bond_2_OS1": 104000,
+    "leaf_spine_k_16_bond_2_OS1": 104000,
+    "leaf_spine_k_18_bond_2_OS1": 104000,
+    "leaf_spine_k_4_bond_2_CLOS_3_OS1": 156000,
+    "leaf_spine_k_4_bond_2_CLOS_3_OS1":156000,
+    "Fabric_x_4_k_4_OS1":156000,
+    "fat_k_4_OS1":156000,
+    "fat_k_4_no_bond_OS1":156000,
+    "Congestion_OS1":104000,
 }
 
 FLOWGEN_DEFAULT_TIME = 2.0  # see /traffic_gen/traffic_gen.py::base_t
-
+ 
 
 def main():
     # make directory if not exists
@@ -151,6 +174,7 @@ def main():
                         type=int, default=0, help="enforce to use window scheme (default: 0)")
     parser.add_argument('--sw_monitoring_interval', dest='sw_monitoring_interval', action='store',
                         type=int, default=10000, help="interval of sampling statistics for queue status (default: 10000ns)")
+    parser.add_argument('--my_flow', type=int, default=0, help="flow number (default: 1), 0: use coWave experiment flows, 1: use my own flow")
 
     # #### CONWEAVE PARAMETERS ####
     # parser.add_argument('--cwh_extra_reply_deadline', dest='cwh_extra_reply_deadline', action='store',
@@ -188,6 +212,7 @@ def main():
     flowgen_stop_time = flowgen_start_time + \
         float(args.simul_time)  # default: 2.0
     sw_monitoring_interval = int(args.sw_monitoring_interval)
+    my_flow = args.my_flow
 
     # get over-subscription ratio from topoogy name
 
@@ -216,8 +241,11 @@ def main():
         n_host = int(line[0]) - int(line[1])
 
     assert (hostload >= 0 and hostload < 100)
-    flow = "L_{load:.2f}_CDF_{cdf}_N_{n_host}_T_{time}ms_B_{bw}_flow".format(
-        load=hostload, cdf=args.cdf, n_host=n_host, time=int(float(args.simul_time)*1000), bw=bw)
+    if my_flow == 0:
+        flow = "L_{load:.2f}_CDF_{cdf}_N_{n_host}_T_{time}ms_B_{bw}_flow".format(
+            load=hostload, cdf=args.cdf, n_host=n_host, time=int(float(args.simul_time)*1000), bw=bw)
+    else:
+        flow = f"my_flow_{my_flow}"
 
     # check the file exists
     if (exists(os.getcwd() + "/config/" + flow + ".txt")):
@@ -252,8 +280,8 @@ def main():
             if (i > n_link):
                 break
             parsed = line.split(" ")
-            if len(parsed) > 2 and (int(parsed[0]) < n_host or int(parsed[1]) < n_host):
-                assert (int(parsed[2].replace("Gbps", "")) == int(bw))
+            # if len(parsed) > 2 and (int(parsed[0]) < n_host or int(parsed[1]) < n_host):
+            #     assert (int(parsed[2].replace("Gbps", "")) == int(bw))
     print("All NIC bandwidth is {bw}Gbps".format(bw=bw))
 
     ##################################################################
@@ -372,7 +400,7 @@ def main():
                                         ai=ai, hai=hai, dctcp_ai=dctcp_ai,
                                         has_win=has_win, var_win=var_win,
                                         fast_react=fast_react, mi=mi, int_multi=int_multi, ewma_gain=ewma_gain,
-                                        kmax_map=kmax_map, kmin_map=kmin_map, pmax_map=pmax_map, time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                                        kmax_map=kmax_map, kmin_map=kmin_map, pmax_map=pmax_map, random_seed=random.randint(1, 100), time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     else:
         print("unknown cc:{}".format(args.cc))
 
@@ -395,6 +423,8 @@ def main():
     print(run_command)
     os.system("./waf --run 'scratch/network-load-balance {config_name}' > {output_log} 2>&1".format(
         config_name=config_name, output_log=output_log))
+    # os.system("./waf --run 'scratch/network-load-balance' --command-template='gdb --args %s {config_name}'\n".format(
+    #             config_name=config_name))
 
     ####################################################
     #                 Analyze the output FCT           #

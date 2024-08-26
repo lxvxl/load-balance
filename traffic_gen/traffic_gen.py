@@ -30,7 +30,7 @@ def poisson(lam):
 if __name__ == "__main__":
 	port = 80
 	parser = OptionParser()
-	parser.add_option("-c", "--cdf", dest = "cdf_file", help = "the file of the traffic size cdf", default = "uniform_distribution.txt")
+	parser.add_option("-c", "--cdf", dest = "cdf_file", help = "the file of the traffic size cdf", default = "Solar2022.txt")
 	parser.add_option("-n", "--nhost", dest = "nhost", help = "number of hosts")
 	parser.add_option("-l", "--load", dest = "load", help = "the percentage of the traffic load to the network capacity, by default 0.3", default = "0.3")
 	parser.add_option("-b", "--bandwidth", dest = "bandwidth", help = "the bandwidth of host link (G/M/K), by default 10G", default = "10G")
@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
 	# generate flows
 	avg = customRand.getAvg()
-	avg_inter_arrival = 1/(bandwidth*load/8./avg)*1000000000
+	avg_inter_arrival = 1/(bandwidth*load/8./avg)*1000000000 
 	n_flow_estimate = int(time / avg_inter_arrival * nhost)
 	n_flow = 0
 	ofile.write("%d \n"%n_flow_estimate)
@@ -90,7 +90,7 @@ if __name__ == "__main__":
 			size = int(customRand.rand())
 			if size <= 0:
 				size = 1
-			n_flow += 1;
+			n_flow += 1
 			ofile.write("%d %d 3 %d %.9f\n"%(src, dst, size, t * 1e-9))
 			heapq.heapreplace(host_list, (t + inter_t, src))
 	ofile.seek(0)

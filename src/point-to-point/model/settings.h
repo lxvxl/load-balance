@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <tuple>
 
 #include "ns3/callback.h"
 #include "ns3/custom-header.h"
@@ -70,7 +71,12 @@ struct Flowlet {
     uint32_t _PathId;     // current pathId
     uint32_t _nPackets;   // for debugging
 };
-
+struct DV_Flowlet{
+    uint32_t _PathId;
+    uint32_t _nPackets;
+    bool _SrcRoute_ENABLE;
+    uint32_t _outPort; // 对于使用ECMP路由的包，需要记录在Src ToR上出发的端口
+};
 /**
  * @brief Tag for monitoring last data sending time per flow
  */
@@ -134,6 +140,16 @@ class Settings {
     static std::map<uint32_t, uint32_t> hostIp2IdMap;
     static std::map<uint32_t, uint32_t> hostId2IpMap;
     static std::map<uint32_t, uint32_t> hostIp2SwitchId;  // host's IP -> connected Switch's Id
+
+    static std::map<uint32_t, std::pair<uint32_t, uint32_t>> flowId2SrcDst; //流的id对应源Torid和目的Torid
+    static std::map<uint32_t, uint32_t> flowId2Port2Src; //流的id对应源Torid所需要选择的出端口
+    static std::map<uint32_t, std::vector<uint32_t>>TorSwitch_nodelist; //记录每个ToR交换机下的节点 ip列表
+    static std::map<uint32_t, std::vector<uint32_t>>hostId2ToRlist; //记录每个节点相连的ToR交换机id的vector
+
+    static std::map<std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>, uint32_t> PacketId2FlowId;  // packet id -> flow idu 
+    //例子：flow_id = Settings::PacketId2FlowId[std::make_tuple(Settings::hostIp2IdMap[ch.sip], Settings::hostIp2IdMap[ch.dip], ch.udp.sport, ch.udp.dport)];
+    static std::map<std::tuple<ns3::Ipv4Address, ns3::Ipv4Address, uint16_t, uint16_t>, uint32_t>QPPair_info2FlowId;
+    static std::map<uint32_t, uint32_t> FlowId2SrcId;
 
     static uint32_t dropped_pkt_sw_ingress;
     static uint32_t dropped_pkt_sw_egress;

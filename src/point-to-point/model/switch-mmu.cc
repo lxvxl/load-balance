@@ -119,6 +119,7 @@ void SwitchMmu::InitSwitch(void) {
             m_port_min_cell);  // m_maxBufferBytes; //per egress sp limit, //maxBufferBytes(375KB *
                                // activePortNumber) - activePortNumber * (MTU * 8) ~ 367KB *
                                // activePortNumber
+
     m_op_uc_port_config_cell = m_maxBufferBytes;  // per egress port limit
     m_q_min_cell = 1 + MTU;
     m_op_uc_port_config1_cell = m_maxBufferBytes;
@@ -129,6 +130,11 @@ void SwitchMmu::InitSwitch(void) {
     m_log_start = 2.1;
     m_log_end = 2.2;
     m_log_step = 0.00001;
+
+    // std::cout << "m_maxBufferBytes: " << m_maxBufferBytes << std::endl;
+    // std::cout << "m_op_buffer_shared_limit_cell: " << m_op_buffer_shared_limit_cell << std::endl;
+    // std::cout << "m_op_uc_port_config_cell: " << m_op_uc_port_config_cell << std::endl;
+    // std::cout <<"m_op_uc_port_config1_cell: " << m_op_uc_port_config1_cell << std::endl;
 }
 
 bool SwitchMmu::CheckIngressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize) {
@@ -149,6 +155,7 @@ bool SwitchMmu::CheckIngressAdmission(uint32_t port, uint32_t qIndex, uint32_t p
             if (m_usedIngressPGHeadroomBytes[port][qIndex] + psize >
                 m_pg_hdrm_limit[port])  // exceed headroom space
             {
+                std::cout << "pfc event:" << std::endl;
                 if (m_PFCenabled) {
                     std::cerr << "WARNING: Drop because ingress headroom full:"
                               << m_usedIngressPGHeadroomBytes[port][qIndex] << "\t"
@@ -164,7 +171,7 @@ bool SwitchMmu::CheckIngressAdmission(uint32_t port, uint32_t qIndex, uint32_t p
 bool SwitchMmu::CheckEgressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize) {
     NS_ASSERT(m_pg_shared_alpha_cell_egress > 0);
 
-    // PFC OFF Nothing
+    // PFC OFF Nothing 
     bool threshold = true;
     if (m_usedEgressSPBytes[GetEgressSP(port, qIndex)] + psize >
         m_op_buffer_shared_limit_cell)  // exceed the sp limit
@@ -190,16 +197,16 @@ bool SwitchMmu::CheckEgressAdmission(uint32_t port, uint32_t qIndex, uint32_t ps
     if ((double)m_usedEgressQSharedBytes[port][qIndex] + psize >
         m_pg_shared_alpha_cell_egress * ((double)m_op_buffer_shared_limit_cell -
                                          m_usedEgressSPBytes[GetEgressSP(port, qIndex)])) {
-#if (SLB_DEBUG == true)
-        // std::cerr << "WARNING: Drop because egress DT threshold exceed, Port:" << port
-        //           << ", Queue:" << qIndex
-        //           << ", QlenInfo:"
-        //           << ((double)m_usedEgressQSharedBytes[port][qIndex] + psize) << " > "
-        //           << (m_pg_shared_alpha_cell_egress * ((double)m_op_buffer_shared_limit_cell -
-        //           m_usedEgressSPBytes[GetEgressSP(port, qIndex)]))
-        //           << ". Natural if not using PFC"
-        //           << std::endl;
-#endif
+// #if (SLB_DEBUG == true)
+        std::cerr << "WARNING: Drop because egress DT threshold exceed, Port:" << port
+                  << ", Queue:" << qIndex
+                  << ", QlenInfo:"
+                  << ((double)m_usedEgressQSharedBytes[port][qIndex] + psize) << " > "
+                  << (m_pg_shared_alpha_cell_egress * ((double)m_op_buffer_shared_limit_cell -
+                  m_usedEgressSPBytes[GetEgressSP(port, qIndex)]))
+                  << ". Natural if not using PFC"
+                  << std::endl;
+// #endif
         threshold = false;
         // drop because it exceeds threshold
     }
@@ -326,6 +333,7 @@ void SwitchMmu::GetPauseClasses(uint32_t port, uint32_t qIndex, bool pClasses[])
     if (port > m_activePortCnt) {
         std::cerr << "ERROR: port is " << port << std::endl;
     }
+    // std::cout << "m_dynamicth:" << m_dynamicth << std::endl;
     if (m_dynamicth) {
         for (uint32_t i = 0; i < qCnt; i++) {
             pClasses[i] = false;
@@ -342,12 +350,14 @@ void SwitchMmu::GetPauseClasses(uint32_t port, uint32_t qIndex, bool pClasses[])
                 m_usedIngressPGHeadroomBytes[port][qIndex] != 0) {
                 pClasses[i] = true;
             }
+            // std:: cout << "threold:" << m_pg_min_cell + m_port_min_cell+m_pg_shared_alpha_cell * ((double)m_buffer_cell_limit_sp -m_usedIngressSPBytes[GetIngressSP(port, qIndex)]) << std::endl;
         }
     } else {
         if (m_usedIngressPortBytes[port] > m_port_max_shared_cell)  // pause the whole port
         {
             for (uint32_t i = 0; i < qCnt; i++) {
                 pClasses[i] = true;
+                std:: cout << "Pause port:" << port << " qIndex:" << qIndex << std::endl;
             }
             return;
         } else {
@@ -355,8 +365,10 @@ void SwitchMmu::GetPauseClasses(uint32_t port, uint32_t qIndex, bool pClasses[])
                 pClasses[i] = false;
             }
         }
+        std::cout << "m_usedIngressPGBytes[port][qIndex]:" << m_usedIngressPGBytes[port][qIndex] << ",m_pg_shared_limit_cell" << m_pg_shared_limit_cell<< std::endl;
         if (m_usedIngressPGBytes[port][qIndex] > m_pg_shared_limit_cell) {
             pClasses[qIndex] = true;
+            std:: cout << "Pause port:" << port << " qIndex:" << qIndex << std::endl;
         }
     }
     return;
@@ -393,6 +405,17 @@ uint32_t SwitchMmu::GetEgressSP(uint32_t port, uint32_t qIndex) {
         return 0;
     else
         return 1;
+}
+uint32_t SwitchMmu::GetusedIngressPortBytes(uint32_t port){
+    return m_usedIngressPortBytes[port];
+}
+uint32_t SwitchMmu::GetusedIngressSPBytes(){
+    return m_usedIngressSPBytes[1];
+
+}
+uint32_t SwitchMmu::GetusedEgressQSharedBytes(uint32_t port, uint32_t qIndex){
+    return m_usedEgressQSharedBytes[port][qIndex];
+
 }
 
 bool SwitchMmu::ShouldSendCN(uint32_t ifindex, uint32_t qIndex) {

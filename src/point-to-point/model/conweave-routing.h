@@ -221,6 +221,11 @@ class ConWeaveReplyTag : public Tag {
     void SetPhase(uint32_t phase);
     uint32_t GetPhase(void) const;
 
+    void SetPathId(uint32_t pathId);
+    uint32_t GetPathId(void) const;
+    void SetHopCount(uint32_t hopCount);
+    uint32_t GetHopCount(void) const;
+
     static TypeId GetTypeId(void);
     virtual TypeId GetInstanceTypeId(void) const;
     uint32_t GetSerializedSize(void) const;
@@ -232,6 +237,8 @@ class ConWeaveReplyTag : public Tag {
         return os << "m_flagReply:" << tag.m_flagReply << "\n"
                   << "m_epoch:" << tag.m_epoch << "\n"
                   << "m_phase:" << tag.m_phase << "\n"
+                  << "m_pathId" << tag.m_pathId << "\n"
+                << "m_hopCount" << tag.m_hopCount
                   << std::endl;
     }
 
@@ -245,6 +252,11 @@ class ConWeaveReplyTag : public Tag {
     uint32_t m_flagReply;
     uint32_t m_epoch;
     uint32_t m_phase;
+
+    //为了能够让控制包能够回到原来的SrcToR，添加源路由
+    uint32_t m_pathId;
+    uint32_t m_hopCount;
+
 };
 
 // tag for congestion NOTIFY packet
@@ -254,6 +266,11 @@ class ConWeaveNotifyTag : public Tag {
     void SetPathId(uint32_t pathId);
     uint32_t GetPathId(void) const;
 
+    void SetRoutePathId(uint32_t routePathId);
+    uint32_t GetRoutePathId(void) const;
+    void SetHopCount(uint32_t hopCount);
+    uint32_t GetHopCount(void) const;
+
     static TypeId GetTypeId(void);
     virtual TypeId GetInstanceTypeId(void) const;
     uint32_t GetSerializedSize(void) const;
@@ -262,11 +279,15 @@ class ConWeaveNotifyTag : public Tag {
     virtual void Print(std::ostream& os) const;
 
     friend std::ostream& operator<<(std::ostream& os, ConWeaveNotifyTag const& tag) {
-        return os << "m_pathId:" << tag.m_pathId << std::endl;
+        return os << "m_pathId:" << tag.m_pathId << "\n" << "m_routePathId:" << tag.m_routePathId << "\n" << "m_hopCount:" << tag.m_hopCount <<std::endl;
+
     }
 
    private:
     uint32_t m_pathId;  // path of DATA
+
+    uint32_t m_routePathId;
+    uint32_t m_hopCount;
 };
 
 /*----------------------------*/
@@ -284,6 +305,11 @@ class ConWeaveRouting : public Object {
     friend class SwitchNode;
 
    public:
+    bool Debug_log = false;
+    bool Notify_log = false;
+    bool Reply_log = false;
+    bool Control_info_log = true;
+
     ConWeaveRouting();
     ~ConWeaveRouting();
     virtual void DoDispose();
